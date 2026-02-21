@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labour Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* LOGIN PAGE */
+        #loginContainer {
+            width: 100%;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .login-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .login-header i {
+            font-size: 50px;
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        .login-header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .login-header p {
+            font-size: 13px;
+            opacity: 0.95;
+            margin: 0;
+        }
+
+        .login-body {
+            padding: 30px;
+        }
+
+        .nav-tabs {
+            border-bottom: 2px solid #e9ecef;
+            margin-bottom: 25px;
+        }
+
+        .nav-tabs .nav-link {
+            color: #6c757d;
+            border: none;
+            border-bottom: 3px solid transparent;
+            padding: 12px 0;
+            font-weight: 600;
+            margin-right: 20px;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: none;
+        }
+
+        .form-control {
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 11px 15px;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: #333;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .btn-login {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            width: 100%;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .btn-login:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #6a3f8e 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+            color: white;
+        }
+
+        .login-link {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 13px;
+            color: #6c757d;
+        }
+
+        .login-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .alert {
+            border-radius: 8px;
+            border: none;
+            margin-bottom: 15px;
+            padding: 12px 15px;
+            font-size: 13px;
+        }
+
+        /* MAIN APP */
+        #navbar {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%) !important;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 12px 0;
+            display: none;
+        }
+
+        #navbar.show {
+            display: block;
+        }
+
+        #navbar .navbar-brand {
+            font-weight: 700;
+            font-size: 20px;
+            color: white !important;
+        }
+
+        #navbar .navbar-brand i {
+            margin-right: 10px;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 250px;
+            background: #f8f9fa;
+            padding-top: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #dee2e6;
+            z-index: 1000;
+            display: none;
+        }
+
+        .sidebar.show {
+            display: block;
+        }
+
+        .sidebar .nav-link {
+            color: #495057;
+            padding: 12px 20px;
+            margin: 5px 0;
+            border-left: 3px solid transparent;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar .nav-link i {
+            min-width: 25px;
+            margin-right: 15px;
+            display: inline-block;
+        }
+
+        .sidebar .nav-link:hover {
+            background-color: #e9ecef;
+            color: #667eea;
+            border-left-color: #667eea;
+        }
+
+        .sidebar .nav-link.active {
+            background-color: #e9ecef;
+            color: #667eea;
+            border-left-color: #667eea;
+        }
+
+        main {
+            margin-left: 250px;
+            margin-top: 60px;
+            padding: 30px;
+            background: #f8f9fa;
+            min-height: calc(100vh - 60px);
+            display: none;
+        }
+
+        main.show {
+            display: block;
+        }
+
+        .section {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .section h2 {
+            color: #2c3e50;
+            font-weight: 700;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .stat-card i {
+            font-size: 35px;
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .stat-card h5 {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .number {
+            font-size: 32px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .table-responsive {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            margin-top: 20px;
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table thead {
+            background: #f8f9fa;
+        }
+
+        .table th {
+            font-weight: 600;
+            color: #495057;
+            padding: 15px;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .table td {
+            padding: 15px;
+            border-bottom: 1px solid #dee2e6;
+            vertical-align: middle;
+        }
+
+        .table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .btn {
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #6a3f8e 100%);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .modal-content {
+            border-radius: 12px;
+            border: none;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+        }
+
+        .modal-header .btn-close {
+            filter: invert(1);
+        }
+
+        .badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                padding: 10px 0;
+            }
+
+            main {
+                margin-left: 0;
+                margin-top: 120px;
+                padding: 15px;
+            }
+
+            #navbar {
+                display: flex;
+                position: fixed;
+                top: 0;
+                width: 100%;
+                z-index: 999;
+            }
+
+            #navbar.show {
+                display: flex;
+            }
+
+            .table {
+                font-size: 12px;
+            }
+
+            .table th, .table td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- LOGIN PAGE -->
+    <div id="loginContainer">
+        <div class="login-card">
+            <div class="login-header">
+                <i class="fas fa-people-carry"></i>
+                <h1>Labour Management</h1>
+                <p>Manage labours, attendance & salaries efficiently</p>
+            </div>
+            <div class="login-body">
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active" id="login-tab" data-bs-toggle="tab" data-bs-target="#login-form">Login</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="register-tab" data-bs-toggle="tab" data-bs-target="#register-form">Register</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <!-- LOGIN FORM -->
+                    <div class="tab-pane fade show active" id="login-form">
+                        <div id="loginAlert"></div>
+                        <form id="loginForm">
+                            <div class="mb-3">
+                                <label class="form-label">Username</label>
+                                <input type="text" class="form-control" id="loginUsername" placeholder="Enter username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Password</label>
+                                <input type="password" class="form-control" id="loginPassword" placeholder="Enter password" required>
+                            </div>
+                            <button type="submit" class="btn btn-login">Login</button>
+                        </form>
+                        <p class="login-link">Don't have an account? <a href="#" onclick="document.getElementById('register-tab').click(); return false;">Register</a></p>
+                    </div>
+
+                    <!-- REGISTER FORM -->
+                    <div class="tab-pane fade" id="register-form">
+                        <div id="registerAlert"></div>
+                        <form id="registerForm">
+                            <div class="mb-3">
+                                <label class="form-label">Username</label>
+                                <input type="text" class="form-control" id="regUsername" placeholder="Choose username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Full Name</label>
+                                <input type="text" class="form-control" id="regName" placeholder="Your name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" id="regEmail" placeholder="your@email.com">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Password</label>
+                                <input type="password" class="form-control" id="regPassword" placeholder="Create password" required>
+                            </div>
+                            <button type="submit" class="btn btn-login">Register</button>
+                        </form>
+                        <p class="login-link">Have account? <a href="#" onclick="document.getElementById('login-tab').click(); return false;">Login</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark" id="navbar">
+        <div class="container-fluid">
+            <a class="navbar-brand">
+                <i class="fas fa-people-carry"></i> Labour Management
+            </a>
+            <div class="ms-auto d-flex align-items-center gap-2">
+                <span class="nav-link" id="userDisplay"></span>
+                <button class="btn btn-outline-light btn-sm" id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link active" href="#" data-section="dashboard">
+                    <i class="fas fa-chart-line"></i> Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="labours">
+                    <i class="fas fa-users"></i> Labours
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="attendance">
+                    <i class="fas fa-calendar-check"></i> Attendance
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="advances">
+                    <i class="fas fa-hand-holding-usd"></i> Advances
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="deductions">
+                    <i class="fas fa-scissors"></i> Deductions
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="leaves">
+                    <i class="fas fa-plane-departure"></i> Leaves
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="salaries">
+                    <i class="fas fa-wallet"></i> Salaries
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <main id="mainContent">
+        <!-- Dashboard -->
+        <section id="dashboard-section" class="section active">
+            <h2><i class="fas fa-chart-line"></i> Dashboard</h2>
+            <div class="row" id="dashboardCards"></div>
+        </section>
+
+        <!-- Labours -->
+        <section id="labours-section" class="section">
+            <div class="d-flex justify-content-between mb-4">
+                <h2><i class="fas fa-users"></i> Labours</h2>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#labourModal">
+                    <i class="fas fa-plus"></i> Add Labour
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table" id="laboursTable">
+                    <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Daily Rate</th><th>Designation</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Attendance -->
+        <section id="attendance-section" class="section">
+            <div class="d-flex justify-content-between mb-4">
+                <h2><i class="fas fa-calendar-check"></i> Attendance</h2>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#attendanceModal">
+                    <i class="fas fa-plus"></i> Mark Attendance
+                </button>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Select Month</label>
+                <input type="month" class="form-control" id="attendanceMonth" style="max-width: 250px;">
+            </div>
+            <div class="table-responsive">
+                <table class="table" id="attendanceTable">
+                    <thead><tr><th>Labour</th><th>Date</th><th>Status</th><th>Hours</th><th>Actions</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Advances -->
+        <section id="advances-section" class="section">
+            <div class="d-flex justify-content-between mb-4">
+                <h2><i class="fas fa-hand-holding-usd"></i> Advances</h2>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#advanceModal">
+                    <i class="fas fa-plus"></i> Add Advance
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table" id="advancesTable">
+                    <thead><tr><th>Labour</th><th>Amount</th><th>Date</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Deductions -->
+        <section id="deductions-section" class="section">
+            <div class="d-flex justify-content-between mb-4">
+                <h2><i class="fas fa-scissors"></i> Deductions</h2>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#deductionModal">
+                    <i class="fas fa-plus"></i> Add Deduction
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table" id="deductionsTable">
+                    <thead><tr><th>Labour</th><th>Amount</th><th>Type</th><th>Date</th><th>Reason</th><th>Actions</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Leaves -->
+        <section id="leaves-section" class="section">
+            <div class="d-flex justify-content-between mb-4">
+                <h2><i class="fas fa-plane-departure"></i> Leaves</h2>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#leaveModal">
+                    <i class="fas fa-plus"></i> Request Leave
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table" id="leavesTable">
+                    <thead><tr><th>Labour</th><th>Start Date</th><th>End Date</th><th>Type</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Salaries -->
+        <section id="salaries-section" class="section">
+            <div class="d-flex justify-content-between mb-4">
+                <h2><i class="fas fa-wallet"></i> Salaries</h2>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#salaryModal">
+                    <i class="fas fa-calculator"></i> Calculate
+                </button>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Select Month</label>
+                <input type="month" class="form-control" id="salaryMonth" style="max-width: 250px;">
+            </div>
+            <div class="table-responsive">
+                <table class="table" id="salariesTable">
+                    <thead><tr><th>Labour</th><th>Month</th><th>Days</th><th>Basic</th><th>Advances</th><th>Deductions</th><th>Net</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODALS -->
+    <!-- Labour Modal -->
+    <div class="modal fade" id="labourModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add/Edit Labour</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="labourForm">
+                        <input type="hidden" id="labourId">
+                        <div class="mb-3"><label class="form-label">Name *</label><input type="text" class="form-control" id="labourName" required></div>
+                        <div class="mb-3"><label class="form-label">Email</label><input type="email" class="form-control" id="labourEmail"></div>
+                        <div class="mb-3"><label class="form-label">Phone</label><input type="tel" class="form-control" id="labourPhone"></div>
+                        <div class="mb-3"><label class="form-label">Address</label><textarea class="form-control" id="labourAddress" rows="2"></textarea></div>
+                        <div class="mb-3"><label class="form-label">Aadhar</label><input type="text" class="form-control" id="labourAadhar"></div>
+                        <div class="mb-3"><label class="form-label">Bank Account</label><input type="text" class="form-control" id="labourBank"></div>
+                        <div class="mb-3"><label class="form-label">Daily Rate</label><input type="number" class="form-control" id="labourRate" step="0.01"></div>
+                        <div class="mb-3"><label class="form-label">Designation</label><input type="text" class="form-control" id="labourDesignation"></div>
+                        <button type="submit" class="btn btn-primary w-100">Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Modal -->
+    <div class="modal fade" id="attendanceModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Mark Attendance</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="attendanceForm">
+                        <div class="mb-3"><label class="form-label">Labour *</label><select class="form-control" id="attLabourId" required></select></div>
+                        <div class="mb-3"><label class="form-label">Date *</label><input type="date" class="form-control" id="attDate" required></div>
+                        <div class="mb-3"><label class="form-label">Status *</label><select class="form-control" id="attStatus" required><option value="present">Present</option><option value="absent">Absent</option><option value="half-day">Half Day</option><option value="sick-leave">Sick Leave</option></select></div>
+                        <div class="mb-3"><label class="form-label">Hours</label><input type="number" class="form-control" id="attHours" value="8" step="0.5"></div>
+                        <div class="mb-3"><label class="form-label">Notes</label><textarea class="form-control" id="attNotes" rows="2"></textarea></div>
+                        <button type="submit" class="btn btn-primary w-100">Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advance Modal -->
+    <div class="modal fade" id="advanceModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Add Advance</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <form id="advanceForm">
+                        <div class="mb-3"><label class="form-label">Labour *</label><select class="form-control" id="advLabourId" required></select></div>
+                        <div class="mb-3"><label class="form-label">Amount *</label><input type="number" class="form-control" id="advAmount" step="0.01" required></div>
+                        <div class="mb-3"><label class="form-label">Reason</label><textarea class="form-control" id="advReason" rows="2"></textarea></div>
+                        <div class="mb-3"><label class="form-label">Due Date</label><input type="date" class="form-control" id="advDueDate"></div>
+                        <button type="submit" class="btn btn-primary w-100">Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deduction Modal -->
+    <div class="modal fade" id="deductionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Add Deduction</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <form id="deductionForm">
+                        <div class="mb-3"><label class="form-label">Labour *</label><select class="form-control" id="dedLabourId" required></select></div>
+                        <div class="mb-3"><label class="form-label">Amount *</label><input type="number" class="form-control" id="dedAmount" step="0.01" required></div>
+                        <div class="mb-3"><label class="form-label">Type</label><input type="text" class="form-control" id="dedType" placeholder="e.g., Damage"></div>
+                        <div class="mb-3"><label class="form-label">Reason</label><textarea class="form-control" id="dedReason" rows="2"></textarea></div>
+                        <button type="submit" class="btn btn-primary w-100">Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Modal -->
+    <div class="modal fade" id="leaveModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Request Leave</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <form id="leaveForm">
+                        <div class="mb-3"><label class="form-label">Labour *</label><select class="form-control" id="leaveLabourId" required></select></div>
+                        <div class="mb-3"><label class="form-label">Start Date *</label><input type="date" class="form-control" id="leaveStart" required></div>
+                        <div class="mb-3"><label class="form-label">End Date *</label><input type="date" class="form-control" id="leaveEnd" required></div>
+                        <div class="mb-3"><label class="form-label">Type</label><select class="form-control" id="leaveType"><option value="casual">Casual</option><option value="sick">Sick</option><option value="earned">Earned</option><option value="unpaid">Unpaid</option></select></div>
+                        <div class="mb-3"><label class="form-label">Reason</label><textarea class="form-control" id="leaveReason" rows="2"></textarea></div>
+                        <button type="submit" class="btn btn-primary w-100">Submit</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Salary Modal -->
+    <div class="modal fade" id="salaryModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Calculate Salary</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <form id="salaryForm">
+                        <div class="mb-3"><label class="form-label">Labour *</label><select class="form-control" id="salLabourId" required></select></div>
+                        <div class="mb-3"><label class="form-label">Month *</label><input type="month" class="form-control" id="salMonth" required></div>
+                        <button type="submit" class="btn btn-primary w-100">Calculate</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="scripts/app.js"></script>
+</body>
+</html>

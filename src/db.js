@@ -1,0 +1,139 @@
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+
+const dbPath = path.resolve('./database.sqlite');
+
+let db = null;
+
+const initDB = () => {
+  return new Promise((resolve, reject) => {
+    db = new sqlite3.Database(dbPath, (err) => {
+      if (err) {
+        reject(err);
+      } else {
+        console.log('Connected to SQLite database');
+        createTables();
+        resolve(db);
+      }
+    });
+  });
+};
+
+const createTables = () => {
+  db.serialize(() => {
+    // Users table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE,
+        role TEXT DEFAULT 'admin',
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Labours table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS labours (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT,
+        phone TEXT,
+        address TEXT,
+        aadhar TEXT UNIQUE,
+        bankAccount TEXT,
+        dailyRate REAL DEFAULT 0,
+        designation TEXT,
+        joinDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+        status TEXT DEFAULT 'active',
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Attendance table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS attendance (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        labourId INTEGER NOT NULL,
+        date DATE NOT NULL,
+        status TEXT DEFAULT 'present',
+        hours REAL DEFAULT 8,
+        notes TEXT,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (labourId) REFERENCES labours(id),
+        UNIQUE(labourId, date)
+      )
+    `);
+
+    // Advances table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS advances (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        labourId INTEGER NOT NULL,
+        amount REAL NOT NULL,
+        date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        reason TEXT,
+        status TEXT DEFAULT 'pending',
+        dueDate DATETIME,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (labourId) REFERENCES labours(id)
+      )
+    `);
+
+    // Deductions table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS deductions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        labourId INTEGER NOT NULL,
+        amount REAL NOT NULL,
+        type TEXT,
+        date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        reason TEXT,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (labourId) REFERENCES labours(id)
+      )
+    `);
+
+    // Leaves table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS leaves (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        labourId INTEGER NOT NULL,
+        startDate DATE NOT NULL,
+        endDate DATE NOT NULL,
+        type TEXT,
+        reason TEXT,
+        status TEXT DEFAULT 'pending',
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (labourId) REFERENCES labours(id)
+      )
+    `);
+
+    // Salary records table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS salaries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        labourId INTEGER NOT NULL,
+        month DATE NOT NULL,
+        basicSalary REAL NOT NULL,
+        daysPresent INTEGER DEFAULT 0,
+        totalAdvance REAL DEFAULT 0,
+        totalDeductions REAL DEFAULT 0,
+        netSalary REAL NOT NULL,
+        status TEXT DEFAULT 'pending',
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (labourId) REFERENCES labours(id),
+        UNIQUE(labourId, month)
+      )
+    `);
+  });
+};
+
+const getDB = () => db;
+
+module.exports = {
+  initDB,
+  getDB
+};
