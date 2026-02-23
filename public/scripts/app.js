@@ -1,35 +1,20 @@
 // API Base URL - Handle both mobile and desktop
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-const API_URL = isMobile ? '/api' : '/api';
+const API_URL = '/api';
 
 let authToken = localStorage.getItem('authToken');
 let currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-
-// Mobile-specific debugging
-if (isMobile) {
-    console.log('📱 Mobile device detected');
-    console.log('User Agent:', navigator.userAgent);
-}
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     // Mobile-specific initialization
     if (isMobile) {
-        console.log('📱 Initializing mobile app');
-        // Add mobile-specific styles or adjustments here
         document.body.classList.add('mobile-device');
-        
-        // Setup network monitoring
         setupNetworkMonitoring();
     }
     
     checkAuth();
     setupEventListeners();
-    
-    // Mobile network monitoring
-    if (isMobile && navigator.connection) {
-        console.log('📱 Network info:', navigator.connection);
-    }
 });
 
 // Mobile network monitoring
@@ -44,6 +29,7 @@ function setupNetworkMonitoring() {
             networkStatus.textContent = 'Offline - Please check your connection';
             networkStatus.className = 'network-status';
         }
+        // Only show status when offline
         networkStatus.style.display = navigator.onLine ? 'none' : 'block';
     }
     
@@ -53,14 +39,6 @@ function setupNetworkMonitoring() {
     // Event listeners
     window.addEventListener('online', updateNetworkStatus);
     window.addEventListener('offline', updateNetworkStatus);
-    
-    // Connection change monitoring (if available)
-    if (navigator.connection) {
-        navigator.connection.addEventListener('change', () => {
-            console.log('📱 Connection changed:', navigator.connection);
-            updateNetworkStatus();
-        });
-    }
 }
 
 // Check authentication
@@ -269,28 +247,16 @@ async function handleLogin(e) {
     }
     
     try {
-        console.log('📱 Mobile login attempt:', isMobile);
-        console.log('Attempting login with:', { username, password: '***' });
-        
-        // Mobile-specific timeout handling
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for mobile
-        
         const response = await fetch(`${API_URL}/auth/login`, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({ username, password }),
-            signal: controller.signal
+            body: JSON.stringify({ username, password })
         });
         
-        clearTimeout(timeoutId);
-        console.log('Login response status:', response.status);
-        
         const data = await response.json();
-        console.log('Login response data:', data);
         
         if (response.ok) {
             authToken = data.token;
@@ -304,9 +270,6 @@ async function handleLogin(e) {
             showAlert(data.error || 'Login failed', 'danger');
         }
     } catch (error) {
-        console.error('Login error:', error);
-        
-        // Mobile-specific error messages
         let errorMessage = 'Error connecting to server. Please try again.';
         
         if (error.name === 'AbortError') {
@@ -316,16 +279,6 @@ async function handleLogin(e) {
         }
         
         showAlert(errorMessage, 'danger');
-        
-        // Mobile network diagnostics
-        if (isMobile) {
-            console.log('📱 Mobile network diagnostics:');
-            console.log('- Online status:', navigator.onLine);
-            if (navigator.connection) {
-                console.log('- Network type:', navigator.connection.effectiveType);
-                console.log('- Downlink:', navigator.connection.downlink);
-            }
-        }
     }
 }
 
