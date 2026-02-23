@@ -516,10 +516,10 @@
 
         /* small circular buttons used in attendance rows */
         .btn-small-round {
-            width: 50px;
-            height: 50px;
-            padding: 0;
-            border-radius: 50%;
+            width: 50px !important;
+            height: 50px !important;
+            padding: 0 !important;
+            border-radius: 50% !important;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -527,7 +527,13 @@
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
-            min-width: 50px;
+            min-width: 50px !important;
+        }
+        /* handle group modifiers that add padding */
+        .btn-group-sm .btn-small-round {
+            padding: 0 !important;
+            width: 50px !important;
+            height: 50px !important;
         }
 
         /* reset previous global button override, only use specific class for circles */
