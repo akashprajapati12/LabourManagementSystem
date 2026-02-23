@@ -6,7 +6,7 @@ const router = express.Router();
 
 // Create labour
 router.post('/', authenticateToken, (req, res) => {
-  const { name, email, phone, address, aadhar, bankAccount, dailyRate, designation } = req.body;
+  const { name, email, phone, address, aadhar, bankAccount, dailyRate, designation, photo } = req.body;
 
   if (!name) {
     return res.status(400).json({ error: 'Labour name is required' });
@@ -15,9 +15,9 @@ router.post('/', authenticateToken, (req, res) => {
   const db = getDB();
 
   db.run(
-    `INSERT INTO labours (name, email, phone, address, aadhar, bankAccount, dailyRate, designation) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, email, phone, address, aadhar, bankAccount, dailyRate || 0, designation],
+    `INSERT INTO labours (name, email, phone, address, aadhar, bankAccount, dailyRate, designation, photo) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [name, email, phone, address, aadhar, bankAccount, dailyRate || 0, designation, photo || null],
     function (err) {
       if (err) {
         if (err.message.includes('UNIQUE')) {
@@ -61,13 +61,13 @@ router.get('/:id', authenticateToken, (req, res) => {
 // Update labour
 router.put('/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
-  const { name, email, phone, address, bankAccount, dailyRate, designation, status } = req.body;
+  const { name, email, phone, address, bankAccount, dailyRate, designation, status, photo } = req.body;
   const db = getDB();
 
   db.run(
     `UPDATE labours SET name = ?, email = ?, phone = ?, address = ?, bankAccount = ?, 
-     dailyRate = ?, designation = ?, status = ? WHERE id = ?`,
-    [name, email, phone, address, bankAccount, dailyRate, designation, status, id],
+     dailyRate = ?, designation = ?, status = ?, photo = ? WHERE id = ?`,
+    [name, email, phone, address, bankAccount, dailyRate, designation, status, photo || null, id],
     function (err) {
       if (err) {
         return res.status(500).json({ error: err.message });

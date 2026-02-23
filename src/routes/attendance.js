@@ -51,6 +51,24 @@ router.get('/labour/:labourId', authenticateToken, (req, res) => {
   });
 });
 
+// Get all attendance
+router.get('/', authenticateToken, (req, res) => {
+  const db = getDB();
+
+  db.all(
+    `SELECT a.*, l.name FROM attendance a 
+     JOIN labours l ON a.labourId = l.id 
+     ORDER BY a.date DESC`,
+    [],
+    (err, records) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(records);
+    }
+  );
+});
+
 // Get all attendance for a month
 router.get('/month/:month', authenticateToken, (req, res) => {
   const { month } = req.params;

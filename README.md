@@ -70,7 +70,11 @@ A complete web-based Labour Management System built with Node.js, Express, SQLit
 
 ### Steps
 
-1. **Extract the project** to your desired location
+1. **Clone the repository**
+```bash
+git clone <your-repository-url>
+cd labour-mgmt-system
+```
 
 2. **Install dependencies**
 ```bash
@@ -92,6 +96,65 @@ npm start
 5. **Access the application**
    - Open your browser and navigate to `http://localhost:5000`
    - Create a new account to get started
+
+## Deployment
+
+### Local Development
+```bash
+npm start
+```
+
+### Production Deployment
+
+#### Option 1: Traditional Hosting
+1. Upload all files to your web server
+2. Install Node.js on the server
+3. Run `npm install` in the project directory
+4. Configure environment variables
+5. Start the application with `npm start`
+6. Use a process manager like PM2 for production
+
+#### Option 2: Cloud Platforms
+
+**Heroku:**
+```bash
+heroku create your-app-name
+heroku addons:create heroku-postgresql:hobby-dev
+git push heroku main
+```
+
+**Vercel (Backend):**
+```bash
+vercel --prod
+```
+
+**Railway:**
+1. Connect your GitHub repository
+2. Railway will automatically deploy on push
+3. Add environment variables in Railway dashboard
+
+#### Option 3: Docker Deployment
+```bash
+# Build Docker image
+docker build -t labour-mgmt-system .
+
+# Run container
+docker run -p 5000:5000 -e JWT_SECRET=your_secret labour-mgmt-system
+```
+
+### Environment Variables for Production
+```bash
+PORT=5000
+JWT_SECRET=your_secure_secret_key_here
+NODE_ENV=production
+DB_PATH=./database.sqlite
+```
+
+### Database Backup
+Regularly backup your `database.sqlite` file:
+```bash
+cp database.sqlite database_backup_$(date +%Y%m%d).sqlite
+```
 
 ## Default Configuration
 

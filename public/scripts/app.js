@@ -31,18 +31,34 @@ function showLoginModal() {
 function showMainApp() {
     document.getElementById('loginContainer').style.display = 'none';
     document.getElementById('navbar').classList.add('show');
-    document.getElementById('sidebar').classList.add('show');
+    document.getElementById('sidebar').classList.remove('show');
     document.getElementById('mainContent').classList.add('show');
     loadLabourDropdowns();
     loadDashboard();
 }
 
-// Update user display
+// Update user display (logo + details)
 function updateUserDisplay() {
-    const userDisplay = document.getElementById('userDisplay');
-    if (currentUser.name) {
-        userDisplay.textContent = `Welcome, ${currentUser.name}`;
+    const initialsEl = document.getElementById('userInitials');
+    const nameEl = document.getElementById('userName');
+    const emailEl = document.getElementById('userEmail');
+    const idEl = document.getElementById('userId');
+    const roleEl = document.getElementById('userRole');
+
+    const name = currentUser.name || currentUser.username || 'User';
+    const email = currentUser.email || '';
+    const id = currentUser.id || currentUser.userId || '';
+    const role = currentUser.role || '';
+
+    if (initialsEl) {
+        const parts = name.split(' ');
+        const initials = (parts[0] ? parts[0][0] : 'U') + (parts[1] ? parts[1][0] : '');
+        initialsEl.textContent = initials.toUpperCase();
     }
+    if (nameEl) nameEl.textContent = name;
+    if (emailEl) emailEl.textContent = email || '-';
+    if (idEl) idEl.textContent = id ? `User ID: ${id}` : 'User ID: -';
+    if (roleEl) roleEl.textContent = role ? `Role: ${role}` : '';
 }
 
 // Setup event listeners
@@ -51,27 +67,137 @@ function setupEventListeners() {
     document.getElementById('loginForm').addEventListener('submit', handleLogin);
     document.getElementById('registerForm').addEventListener('submit', handleRegister);
     
-    // Logout
-    document.getElementById('logoutBtn').addEventListener('click', logout);
+    // Logout (in sidebar footer)
+    const logoutSidebar = document.getElementById('logoutBtnSidebar');
+    if (logoutSidebar) logoutSidebar.addEventListener('click', logout);
+
+    // Hamburger menu toggle - ensure visible when toggled
+    const sidebarToggleBtn = document.getElementById('sidebarToggle');
+    const sidebarEl = document.getElementById('sidebar');
+    if (sidebarToggleBtn && sidebarEl) {
+        // create overlay if it doesn't exist
+        let overlayEl = document.getElementById('sidebarOverlay');
+        if (!overlayEl) {
+            overlayEl = document.createElement('div');
+            overlayEl.id = 'sidebarOverlay';
+            overlayEl.className = 'sidebar-overlay';
+            document.body.appendChild(overlayEl);
+        }
+
+        sidebarToggleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            sidebarEl.classList.toggle('show');
+            overlayEl.classList.toggle('show');
+        });
+        
+        // Close sidebar when any link or button inside it is clicked
+        sidebarEl.addEventListener('click', (e) => {
+            const clickable = e.target.closest('a, button, [data-section]');
+            if (clickable) {
+                sidebarEl.classList.remove('show');
+                overlayEl.classList.remove('show');
+            }
+        });
+
+        // Close sidebar when clicking outside of it (overlay behavior)
+        document.addEventListener('click', (e) => {
+            const isClickInside = e.target.closest('#sidebar');
+            const isToggle = e.target.closest('#sidebarToggle');
+            if (!isClickInside && !isToggle && sidebarEl.classList.contains('show')) {
+                sidebarEl.classList.remove('show');
+                overlayEl.classList.remove('show');
+            }
+        });
+
+        // Clicking on the overlay should close the sidebar as well
+        overlayEl.addEventListener('click', () => {
+            if (sidebarEl.classList.contains('show')) {
+                sidebarEl.classList.remove('show');
+                overlayEl.classList.remove('show');
+            }
+        });
+    }
+
+    // User logo toggle - show user details
+    const userLogo = document.getElementById('userLogo');
+    if (userLogo) {
+        console.log('Binding userLogo click');
+        userLogo.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const details = document.getElementById('userDetails');
+            if (details) {
+                // toggle via inline style to avoid inline style conflicts
+                if (details.style.display === 'block' || details.classList.contains('show')) {
+                    details.style.display = 'none';
+                    details.classList.remove('show');
+                } else {
+                    details.style.display = 'block';
+                    details.classList.add('show');
+                }
+            }
+        });
+        // close user details when clicking outside
+        document.addEventListener('click', () => {
+            const details = document.getElementById('userDetails');
+            if (details && (details.style.display === 'block' || details.classList.contains('show'))) {
+                details.style.display = 'none';
+                details.classList.remove('show');
+            }
+        });
+    } else {
+        console.warn('userLogo element not found');
+    }
     
-    // Forms
-    document.getElementById('labourForm').addEventListener('submit', saveLabour);
-    document.getElementById('attendanceForm').addEventListener('submit', saveAttendance);
-    document.getElementById('advanceForm').addEventListener('submit', saveAdvance);
-    document.getElementById('deductionForm').addEventListener('submit', saveDeduction);
-    document.getElementById('leaveForm').addEventListener('submit', saveLeave);
-    document.getElementById('salaryForm').addEventListener('submit', calculateSalary);
-    
-    // Navigation
+    // Close sidebar when clicking on a nav link
     document.querySelectorAll('.nav-link[data-section]').forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
+            document.getElementById('sidebar').classList.remove('show');
             loadSection(link.dataset.section);
         });
     });
     
+    // Forms
+    document.getElementById('labourForm').addEventListener('submit', saveLabour);
+    
+    // Photo upload handlers
+    const photoDropZone = document.getElementById('photoDropZone');
+    const photoInput = document.getElementById('labourPhoto');
+    
+    if (photoDropZone && photoInput) {
+        photoDropZone.addEventListener('click', () => photoInput.click());
+        
+        photoInput.addEventListener('change', handlePhotoSelect);
+        
+        photoDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            photoDropZone.style.backgroundColor = '#e7e9ff';
+            photoDropZone.style.borderColor = '#667eea';
+        });
+        
+        photoDropZone.addEventListener('dragleave', () => {
+            photoDropZone.style.backgroundColor = '#f8f9fa';
+            photoDropZone.style.borderColor = '#ccc';
+        });
+        
+        photoDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            photoDropZone.style.backgroundColor = '#f8f9fa';
+            photoDropZone.style.borderColor = '#ccc';
+            if (e.dataTransfer.files.length > 0) {
+                photoInput.files = e.dataTransfer.files;
+                handlePhotoSelect();
+            }
+        });
+    }
+    
+    document.getElementById('attendanceForm').addEventListener('submit', saveAttendance);
+    document.getElementById('advanceForm').addEventListener('submit', saveAdvance);
+    document.getElementById('leaveForm').addEventListener('submit', saveLeave);
+    document.getElementById('salaryForm').addEventListener('submit', calculateSalary);
+    
     // Month selectors
-    document.getElementById('attendanceMonth').addEventListener('change', loadAttendance);
+    document.getElementById('attendanceDate').addEventListener('change', loadAttendance);
     document.getElementById('salaryMonth').addEventListener('change', loadSalaries);
 }
 
@@ -171,9 +297,7 @@ function loadSection(section) {
             case 'advances':
                 loadAdvances();
                 break;
-            case 'deductions':
-                loadDeductions();
-                break;
+            // deductions removed
             case 'leaves':
                 loadLeaves();
                 break;
@@ -187,40 +311,63 @@ function loadSection(section) {
 // Dashboard
 async function loadDashboard() {
     try {
-        const [labours, attendance, advances, deductions, leaves, salaries] = await Promise.all([
+        const [labours, attendance, advances, leaves, salaries] = await Promise.all([
             fetchAPI('/labours'),
-            fetchAPI('/attendance/month/' + new Date().toISOString().slice(0, 7)),
+            fetchAPI('/attendance'),
             fetchAPI('/advances'),
-            fetchAPI('/deductions'),
             fetchAPI('/leaves'),
             fetchAPI('/salaries')
         ]);
         
         const dashboardCards = document.getElementById('dashboardCards');
         dashboardCards.innerHTML = `
-            <div class="col-md-4 col-lg-3">
-                <div class="stat-card" style="background: linear-gradient(135deg, #ff9a56 0%, #ff7e5f 100%);">
-                    <h5><i class="fas fa-users"></i> Total Labours</h5>
-                    <div class="number">${labours.length}</div>
-                </div>
+            <div class="col-md-6 col-lg-3">
+                <button class="stat-card modern-card nav-button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);" onclick="loadSection('labours')">
+                    <div class="card-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="card-content">
+                        <h6>Total Labours</h6>
+                        <div class="number">${labours.length}</div>
+                    </div>
+                </button>
             </div>
-            <div class="col-md-4 col-lg-3">
-                <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                    <h5><i class="fas fa-calendar-check"></i> Present Today</h5>
-                    <div class="number">${attendance.filter(a => a.status === 'present').length}</div>
-                </div>
+            <div class="col-md-6 col-lg-3">
+                <button class="stat-card modern-card nav-button" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);" onclick="loadSection('attendance')">
+                    <div class="card-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="card-content">
+                        <h6>Present Today</h6>
+                        <div class="number">${attendance.filter(a => {
+                            const recDate = new Date(a.date).toISOString().split('T')[0];
+                            const today = new Date().toISOString().split('T')[0];
+                            return ['present', 'half-day', 'overtime'].includes(a.status) && recDate === today;
+                        }).length}</div>
+                    </div>
+                </button>
             </div>
-            <div class="col-md-4 col-lg-3">
-                <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                    <h5><i class="fas fa-hand-holding-usd"></i> Total Advances</h5>
-                    <div class="number">₹${advances.reduce((sum, a) => sum + a.amount, 0).toFixed(2)}</div>
-                </div>
+            <div class="col-md-6 col-lg-3">
+                <button class="stat-card modern-card nav-button" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);" onclick="loadSection('advances')">
+                    <div class="card-icon">
+                        <i class="fas fa-hand-holding-usd"></i>
+                    </div>
+                    <div class="card-content">
+                        <h6>Total Advances</h6>
+                        <div class="number">₹${advances.reduce((sum, a) => sum + a.amount, 0).toFixed(0)}</div>
+                    </div>
+                </button>
             </div>
-            <div class="col-md-4 col-lg-3">
-                <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-                    <h5><i class="fas fa-calendar-times"></i> Pending Leaves</h5>
-                    <div class="number">${leaves.filter(l => l.status === 'pending').length}</div>
-                </div>
+            <div class="col-md-6 col-lg-3">
+                <button class="stat-card modern-card nav-button" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);" onclick="loadSection('leaves')">
+                    <div class="card-icon">
+                        <i class="fas fa-calendar-times"></i>
+                    </div>
+                    <div class="card-content">
+                        <h6>Pending Leaves</h6>
+                        <div class="number">${leaves.filter(l => l.status === 'pending').length}</div>
+                    </div>
+                </button>
             </div>
         `;
     } catch (error) {
@@ -228,39 +375,209 @@ async function loadDashboard() {
     }
 }
 
+// Photo upload handler
+function handlePhotoSelect() {
+    const photoInput = document.getElementById('labourPhoto');
+    const photoPreview = document.getElementById('photoPreview');
+    const photoPreviewImg = document.getElementById('photoPreviewImg');
+    
+    if (photoInput && photoInput.files && photoInput.files[0]) {
+        const file = photoInput.files[0];
+        
+        // Validate file size (5MB max)
+        if (file.size > 5 * 1024 * 1024) {
+            showAlert('Photo size should be less than 5MB', 'warning');
+            photoInput.value = '';
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            if (photoPreviewImg) {
+                photoPreviewImg.src = e.target.result;
+                photoPreview.style.display = 'block';
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function removePhoto() {
+    const photoInput = document.getElementById('labourPhoto');
+    const photoPreview = document.getElementById('photoPreview');
+    if (photoInput) photoInput.value = '';
+    if (photoPreview) photoPreview.style.display = 'none';
+}
+
 // Labours Management
 async function loadLabours() {
     try {
         const labours = await fetchAPI('/labours');
-        const tbody = document.querySelector('#laboursTable tbody');
+        const container = document.getElementById('laboursContainer');
         
         if (labours.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4">No labours found</td></tr>';
+            container.innerHTML = '<div class="col-12 text-center py-4">No labours found</div>';
             return;
         }
         
-        tbody.innerHTML = labours.map(labour => `
-            <tr>
-                <td>${labour.name}</td>
-                <td>${labour.email || '-'}</td>
-                <td>${labour.phone || '-'}</td>
-                <td>₹${labour.dailyRate}</td>
-                <td>${labour.designation || '-'}</td>
-                <td><span class="badge bg-${labour.status === 'active' ? 'success' : 'danger'}">${labour.status}</span></td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn btn-sm btn-warning" onclick="editLabour(${labour.id})">
-                            <i class="fas fa-edit"></i>
+        container.innerHTML = labours.map(labour => `
+            <div class="row g-2 mb-2 p-2 border rounded" style="background: white; align-items: center; border: 1px solid #dee2e6;">
+                <!-- Photo -->
+                <div class="col-auto">
+                    ${labour.photo ? `
+                        <div style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; border: 2px solid #667eea;">
+                            <img src="${labour.photo}" alt="${labour.name}" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                    ` : `
+                        <div style="width: 50px; height: 50px; border-radius: 50%; background: #667eea; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; border: 2px solid #667eea;">
+                            ${labour.name.split(' ').map(n => n[0]).join('')}
+                        </div>
+                    `}
+                </div>
+                
+                <!-- Name and Designation -->
+                <div class="col">
+                    <div style="font-weight: 600; font-size: 15px; color: #2c3e50; margin-bottom: 2px;">${labour.name}</div>
+                    ${labour.designation ? `<div style="font-size: 12px; color: #6c757d;">${labour.designation}</div>` : ''}
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="col-auto">
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-info" style="padding: 4px 10px; font-size: 11px; border-radius: 15px;" onclick="showLabourDetails(${labour.id})">
+                            <i class="fas fa-info-circle"></i> Info
                         </button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteLabour(${labour.id})">
-                            <i class="fas fa-trash"></i>
+                        <button class="btn btn-sm btn-success" style="padding: 4px 10px; font-size: 11px; border-radius: 15px;" onclick="showAttendanceCalendar(${labour.id}, '${labour.name}')">
+                            <i class="fas fa-calendar"></i> Attendance
+                        </button>
+                        <button class="btn btn-sm btn-danger" style="padding: 4px 10px; font-size: 11px; border-radius: 15px;" onclick="deleteLabour(${labour.id})">
+                            <i class="fas fa-trash"></i> Delete
                         </button>
                     </div>
-                </td>
-            </tr>
+                </div>
+            </div>
         `).join('');
     } catch (error) {
         showAlert('Error loading labours', 'danger');
+    }
+}
+
+function showLabourDetails(labourId) {
+    fetchAPI('/labours').then(labours => {
+        const labour = labours.find(l => l.id === labourId);
+        if (labour) {
+            const detailsHtml = `
+                ${labour.photo ? `<div style="margin-bottom: 15px;"><img src="${labour.photo}" alt="${labour.name}" style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px;"></div>` : ''}
+                <div style="border-bottom: 1px solid #eee; padding-bottom: 12px; margin-bottom: 12px;">
+                    <h6>${labour.name}</h6>
+                </div>
+                <div style="margin-bottom: 10px; line-height: 1.8;">
+                    <strong>Email:</strong> ${labour.email || '-'}<br>
+                    <strong>Phone:</strong> ${labour.phone || '-'}<br>
+                    <strong>Address:</strong> ${labour.address || '-'}<br>
+                    <strong>Daily Rate:</strong> ₹${labour.dailyRate || 0}<br>
+                    <strong>Designation:</strong> ${labour.designation || '-'}<br>
+                    <strong>Aadhar:</strong> ${labour.aadhar || '-'}<br>
+                    <strong>Bank Account:</strong> ${labour.bankAccount || '-'}
+                </div>
+            `;
+            document.getElementById('labourDetailsContent').innerHTML = detailsHtml;
+            new bootstrap.Modal(document.getElementById('labourDetailsModal')).show();
+        }
+    }).catch(err => showAlert('Error loading labour details', 'danger'));
+}
+
+function showAttendanceCalendar(labourId, labourName) {
+    const monthInput = document.getElementById('calendarMonth');
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    monthInput.value = currentMonth;
+    
+    const calendarModal = new bootstrap.Modal(document.getElementById('labourCalendarModal'));
+    calendarModal.show();
+    
+    // Store labour info for calendar loading
+    window.currentCalendarLabourId = labourId;
+    window.currentCalendarMonth = currentMonth;
+    
+    // Load calendar
+    loadAttendanceCalendar(labourId, currentMonth);
+    
+    // Set up month change event
+    if (!monthInput._labourCalendarListener) {
+        monthInput._labourCalendarListener = true;
+        monthInput.addEventListener('change', (e) => {
+            loadAttendanceCalendar(window.currentCalendarLabourId, e.target.value);
+        });
+    }
+}
+
+async function loadAttendanceCalendar(labourId, month) {
+    try {
+        const attendance = await fetchAPI('/attendance');
+        const labourAttendance = attendance.filter(a => {
+            const aMonth = new Date(a.date).toISOString().slice(0, 7);
+            return a.labourId === labourId && aMonth === month;
+        });
+
+        const calendarDiv = document.getElementById('attendanceCalendar');
+        const monthLabel = new Date(month + '-01').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+        
+        let html = `<h6 style="margin-bottom: 15px;">${monthLabel}</h6><div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;">`;
+        
+        // Day headers
+        const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        dayHeaders.forEach(day => {
+            html += `<div style="padding: 8px; text-align: center; font-weight: 600; color: #666; font-size: 12px;">${day}</div>`;
+        });
+        
+        // Get first day of month and number of days
+        const [year, monthNum] = month.split('-');
+        const firstDay = new Date(year, monthNum - 1, 1).getDay();
+        const daysInMonth = new Date(year, monthNum, 0).getDate();
+        
+        // Add empty cells for days before month starts
+        for (let i = 0; i < firstDay; i++) {
+            html += `<div style="padding: 8px; text-align: center; background: #f5f5f5; border-radius: 4px;"></div>`;
+        }
+        
+        // Add day cells
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${month}-${String(day).padStart(2, '0')}`;
+            const attRecord = labourAttendance.find(a => a.date.split('T')[0] === dateStr);
+            const status = attRecord ? attRecord.status : 'absent';
+            let bgColor = '#f8d7da';
+            let textColor = '#721c24';
+            let statusLabel = 'A';
+            
+            if (status === 'present') {
+                bgColor = '#d4edda';
+                textColor = '#155724';
+                statusLabel = 'P';
+            } else if (status === 'half-day') {
+                bgColor = '#fff3cd';
+                textColor = '#856404';
+                statusLabel = 'H';
+            } else if (status === 'overtime') {
+                bgColor = '#d1ecf1';
+                textColor = '#0c5460';
+                statusLabel = 'OT';
+            }
+            
+            html += `<div style="padding: 8px; text-align: center; background: ${bgColor}; color: ${textColor}; border-radius: 4px; font-weight: 500; cursor: pointer; min-height: 45px; display: flex; flex-direction: column; justify-content: center; align-items: center;" title="${day} - ${status}" data-bs-toggle="tooltip"><small>${day}</small><small>${statusLabel}</small></div>`;
+        }
+        
+        html += `</div>
+        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 6px;">
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 13px;">
+                <div><span style="display: inline-block; width: 12px; height: 12px; background: #d4edda; border-radius: 3px; margin-right: 5px;"></span>P = Present</div>
+                <div><span style="display: inline-block; width: 12px; height: 12px; background: #d1ecf1; border-radius: 3px; margin-right: 5px;"></span>OT = Overtime</div>
+                <div><span style="display: inline-block; width: 12px; height: 12px; background: #fff3cd; border-radius: 3px; margin-right: 5px;"></span>H = Half-day</div>
+                <div><span style="display: inline-block; width: 12px; height: 12px; background: #f8d7da; border-radius: 3px; margin-right: 5px;"></span>A = Absent</div>
+            </div>
+        </div>`;
+        calendarDiv.innerHTML = html;
+    } catch (error) {
+        showAlert('Error loading attendance calendar', 'danger');
     }
 }
 
@@ -268,6 +585,31 @@ async function saveLabour(e) {
     e.preventDefault();
     
     const labourId = document.getElementById('labourId').value;
+    const photoInput = document.getElementById('labourPhoto');
+    
+    let photoData = null;
+    
+    // Get existing photo if updating and no new photo selected
+    if (labourId && !photoInput.files.length) {
+        // Keep existing photo
+        try {
+            const labours = await fetchAPI('/labours');
+            const existingLabour = labours.find(l => l.id === parseInt(labourId));
+            if (existingLabour && existingLabour.photo) {
+                photoData = existingLabour.photo;
+            }
+        } catch (e) {
+            console.log('Could not retrieve existing photo');
+        }
+    } else if (photoInput.files.length > 0) {
+        // Convert new photo to base64
+        photoData = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.readAsDataURL(photoInput.files[0]);
+        });
+    }
+    
     const data = {
         name: document.getElementById('labourName').value,
         email: document.getElementById('labourEmail').value,
@@ -277,6 +619,7 @@ async function saveLabour(e) {
         bankAccount: document.getElementById('labourBank').value,
         dailyRate: parseFloat(document.getElementById('labourRate').value),
         designation: document.getElementById('labourDesignation').value,
+        photo: photoData,
         status: 'active'
     };
     
@@ -289,6 +632,8 @@ async function saveLabour(e) {
         showAlert('Labour saved successfully', 'success');
         document.getElementById('labourForm').reset();
         document.getElementById('labourId').value = '';
+        const photoPreview = document.getElementById('photoPreview');
+        if (photoPreview) photoPreview.style.display = 'none';
         bootstrap.Modal.getInstance(document.getElementById('labourModal')).hide();
         loadLabours();
         loadLabourDropdowns();
@@ -333,34 +678,104 @@ async function deleteLabour(id) {
 // Attendance Management
 async function loadAttendance() {
     try {
-        const month = document.getElementById('attendanceMonth').value || new Date().toISOString().slice(0, 7);
-        document.getElementById('attendanceMonth').value = month;
+        // Set date to today if not set
+        const dateInput = document.getElementById('attendanceDate');
+        if (!dateInput.value) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.value = today;
+        }
         
-        const attendance = await fetchAPI(`/attendance/month/${month}`);
+        const selectedDate = dateInput.value;
+        const labours = await fetchAPI('/labours');
+        const attendance = await fetchAPI('/attendance');
+        
         const tbody = document.querySelector('#attendanceTable tbody');
         
-        if (attendance.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No attendance records found</td></tr>';
+        if (labours.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4">No labours found. Add labours first.</td></tr>';
             return;
         }
         
-        tbody.innerHTML = attendance.map(record => `
-            <tr>
-                <td>${record.name}</td>
-                <td>${new Date(record.date).toLocaleDateString()}</td>
-                <td><span class="badge bg-${getStatusColor(record.status)}">${record.status}</span></td>
-                <td>${record.hours}</td>
-                <td>
-                    <button class="btn btn-sm btn-danger" onclick="deleteAttendance(${record.id})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `).join('');
+        tbody.innerHTML = labours.map(labour => {
+            const todayRecord = attendance.find(a => 
+                a.labourId === labour.id && 
+                new Date(a.date).toISOString().split('T')[0] === selectedDate
+            );
+            
+            const status = todayRecord ? todayRecord.status : 'not-marked';
+            const hours = todayRecord ? todayRecord.hours : 8;
+            
+            return `
+                <tr>
+                    <td><strong>${labour.name}</strong></td>
+                    <td>
+                        <span class="badge bg-${getStatusColor(status)}">
+                            ${status === 'not-marked' ? 'Not Marked' : status}
+                        </span>
+                    </td>
+                    <td>${hours}</td>
+                    <td>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button class="btn btn-outline-success" style="border-radius: 20px;" onclick="markAttendance(${labour.id}, '${selectedDate}', 'present')">
+                                <i class="fas fa-check"></i> Present
+                            </button>
+                            <button class="btn btn-outline-danger" style="border-radius: 20px;" onclick="markAttendance(${labour.id}, '${selectedDate}', 'absent')">
+                                <i class="fas fa-times"></i> Absent
+                            </button>
+                            <button class="btn btn-outline-warning" style="border-radius: 20px;" onclick="markAttendance(${labour.id}, '${selectedDate}', 'half-day')">
+                                <i class="fas fa-minus"></i> Half-day
+                            </button>
+                            <button class="btn btn-outline-primary" style="border-radius: 20px;" onclick="showOvertimeModal(${labour.id}, '${labour.name}', '${selectedDate}', ${hours})">
+                                <i class="fas fa-clock"></i> Overtime
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
     } catch (error) {
         showAlert('Error loading attendance', 'danger');
+        console.error(error);
     }
 }
+
+async function markAttendance(labourId, date, status, hours = 8) {
+    try {
+        const data = {
+            labourId: labourId,
+            date: date,
+            status: status,
+            hours: hours,
+            notes: ''
+        };
+        
+        await fetchAPI('/attendance', 'POST', data);
+        showAlert(`Attendance marked as ${status}`, 'success');
+        loadAttendance();
+    } catch (error) {
+        showAlert('Error marking attendance', 'danger');
+        console.error(error);
+    }
+}
+
+// Overtime modal handling
+let overtimeData = {};
+
+function showOvertimeModal(labourId, labourName, date, currentHours = 8) {
+    overtimeData = { labourId, date, currentHours: currentHours || 8 };
+    document.getElementById('overtimeLabourName').value = labourName;
+    document.getElementById('overtimeHours').value = 1;
+    const modal = new bootstrap.Modal(document.getElementById('overtimeModal'));
+    modal.show();
+}
+
+document.getElementById('overtimeForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const overtimeHours = Number(document.getElementById('overtimeHours').value) || 1;
+    const totalHours = overtimeData.currentHours + overtimeHours;
+    await markAttendance(overtimeData.labourId, overtimeData.date, 'overtime', totalHours);
+    bootstrap.Modal.getInstance(document.getElementById('overtimeModal')).hide();
+});
 
 async function saveAttendance(e) {
     e.preventDefault();
@@ -472,68 +887,7 @@ async function deleteAdvance(id) {
     }
 }
 
-// Deductions Management
-async function loadDeductions() {
-    try {
-        const deductions = await fetchAPI('/deductions');
-        const tbody = document.querySelector('#deductionsTable tbody');
-        
-        if (deductions.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">No deductions found</td></tr>';
-            return;
-        }
-        
-        tbody.innerHTML = deductions.map(ded => `
-            <tr>
-                <td>${ded.name}</td>
-                <td>₹${ded.amount.toFixed(2)}</td>
-                <td>${ded.type || '-'}</td>
-                <td>${new Date(ded.date).toLocaleDateString()}</td>
-                <td>${ded.reason || '-'}</td>
-                <td>
-                    <button class="btn btn-sm btn-danger" onclick="deleteDeduction(${ded.id})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `).join('');
-    } catch (error) {
-        showAlert('Error loading deductions', 'danger');
-    }
-}
-
-async function saveDeduction(e) {
-    e.preventDefault();
-    
-    const data = {
-        labourId: parseInt(document.getElementById('dedLabourId').value),
-        amount: parseFloat(document.getElementById('dedAmount').value),
-        type: document.getElementById('dedType').value,
-        reason: document.getElementById('dedReason').value
-    };
-    
-    try {
-        await fetchAPI('/deductions', 'POST', data);
-        showAlert('Deduction added successfully', 'success');
-        document.getElementById('deductionForm').reset();
-        bootstrap.Modal.getInstance(document.getElementById('deductionModal')).hide();
-        loadDeductions();
-    } catch (error) {
-        showAlert('Error adding deduction', 'danger');
-    }
-}
-
-async function deleteDeduction(id) {
-    if (confirm('Delete this deduction?')) {
-        try {
-            await fetchAPI(`/deductions/${id}`, 'DELETE');
-            showAlert('Deduction deleted', 'success');
-            loadDeductions();
-        } catch (error) {
-            showAlert('Error deleting deduction', 'danger');
-        }
-    }
-}
+// Deductions removed from frontend
 
 // Leaves Management
 async function loadLeaves() {
@@ -578,7 +932,6 @@ async function saveLeave(e) {
         labourId: parseInt(document.getElementById('leaveLabourId').value),
         startDate: document.getElementById('leaveStart').value,
         endDate: document.getElementById('leaveEnd').value,
-        type: document.getElementById('leaveType').value,
         reason: document.getElementById('leaveReason').value
     };
     
@@ -625,32 +978,96 @@ async function loadSalaries() {
         const tbody = document.querySelector('#salariesTable tbody');
         
         if (salaries.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4">No salary records found</td></tr>';
+            const isMobile = window.innerWidth <= 768;
+            if (isMobile) {
+                tbody.innerHTML = '<tr><td colspan="10"><div class="text-center py-4" style="background: white; border-radius: 12px; margin: 15px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);"><i class="fas fa-file-invoice-dollar" style="font-size: 48px; color: #6c757d; margin-bottom: 15px;"></i><div style="color: #6c757d; font-size: 18px;">No salary records found</div></div></td></tr>';
+            } else {
+                tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4">No salary records found</td></tr>';
+            }
             return;
         }
         
-        tbody.innerHTML = salaries.map(sal => `
-            <tr>
-                <td>${sal.name}</td>
-                <td>${new Date(sal.month).toLocaleDateString('en-IN', {month: 'long', year: 'numeric'})}</td>
-                <td>${sal.daysPresent}</td>
-                <td>₹${sal.basicSalary.toFixed(2)}</td>
-                <td>₹${sal.totalAdvance.toFixed(2)}</td>
-                <td>₹${sal.totalDeductions.toFixed(2)}</td>
-                <td><strong>₹${sal.netSalary.toFixed(2)}</strong></td>
-                <td><span class="badge bg-${sal.status === 'pending' ? 'warning' : 'success'}">${sal.status}</span></td>
-                <td>
-                    <div class="action-buttons">
-                        ${sal.status === 'pending' ? `
-                            <button class="btn btn-sm btn-success" onclick="updateSalaryStatus(${sal.id}, 'paid')">Mark Paid</button>
-                        ` : ''}
-                        <button class="btn btn-sm btn-info" onclick="printSalarySlip(${sal.id})">
-                            <i class="fas fa-print"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `).join('');
+        // Check if on mobile device
+        const isMobile = window.innerWidth <= 768;
+        
+        if (isMobile) {
+            // Mobile-friendly card layout
+            tbody.innerHTML = salaries.map(sal => `
+                <tr>
+                    <td colspan="10">
+                        <div class="salary-card">
+                            <div class="salary-header">
+                                <h5>${sal.name}</h5>
+                                <span class="badge bg-${sal.status === 'pending' ? 'warning' : 'success'}">${sal.status}</span>
+                            </div>
+                            <div class="salary-details">
+                                <div class="detail-row">
+                                    <span class="label">Month:</span>
+                                    <span class="value">${new Date(sal.month).toLocaleDateString('en-IN', {month: 'long', year: 'numeric'})}</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="label">Days:</span>
+                                    <span class="value">${sal.daysPresent || 0}</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="label">OT Hours:</span>
+                                    <span class="value">${(Number(sal.overtimeHours) || 0).toFixed(1)}h</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="label">Basic:</span>
+                                    <span class="value">₹${(Number(sal.basicSalary) || 0).toFixed(2)}</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="label">OT Pay:</span>
+                                    <span class="value">₹${(Number(sal.overtimePay) || 0).toFixed(2)}</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="label">Advances:</span>
+                                    <span class="value">₹${(Number(sal.totalAdvance) || 0).toFixed(2)}</span>
+                                </div>
+                                <div class="detail-row net-row">
+                                    <span class="label">Net Salary:</span>
+                                    <span class="value">₹${(Number(sal.netSalary) || 0).toFixed(2)}</span>
+                                </div>
+                            </div>
+                            <div class="salary-actions">
+                                ${sal.status === 'pending' ? `
+                                    <button class="btn btn-sm btn-success" onclick="updateSalaryStatus(${sal.id}, 'paid')">Mark Paid</button>
+                                ` : ''}
+                                <button class="btn btn-sm btn-info" onclick="printSalarySlip(${sal.id})">
+                                    <i class="fas fa-print"></i> Print
+                                </button>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            // Desktop table layout
+            tbody.innerHTML = salaries.map(sal => `
+                <tr data-salary-id="${sal.id}" data-basic="${Number(sal.basicSalary) || 0}" data-advance="${Number(sal.totalAdvance) || 0}" data-deductions="${Number(sal.totalDeductions) || 0}" data-net="${Number(sal.netSalary) || 0}" data-days="${sal.daysPresent || 0}">
+                    <td>${sal.name}</td>
+                    <td>${new Date(sal.month).toLocaleDateString('en-IN', {month: 'long', year: 'numeric'})}</td>
+                    <td>${sal.daysPresent || 0}</td>
+                    <td>${(Number(sal.overtimeHours) || 0).toFixed(1)}h</td>
+                    <td>₹${(Number(sal.basicSalary) || 0).toFixed(2)}</td>
+                    <td>₹${(Number(sal.overtimePay) || 0).toFixed(2)}</td>
+                    <td>₹${(Number(sal.totalAdvance) || 0).toFixed(2)}</td>
+                    <td><strong>₹${(Number(sal.netSalary) || 0).toFixed(2)}</strong></td>
+                    <td><span class="badge bg-${sal.status === 'pending' ? 'warning' : 'success'}">${sal.status}</span></td>
+                    <td>
+                        <div class="action-buttons">
+                            ${sal.status === 'pending' ? `
+                                <button class="btn btn-sm btn-success" onclick="updateSalaryStatus(${sal.id}, 'paid')">Mark Paid</button>
+                            ` : ''}
+                            <button class="btn btn-sm btn-info" onclick="printSalarySlip(${sal.id})">
+                                <i class="fas fa-print"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
     } catch (error) {
         showAlert('Error loading salaries', 'danger');
     }
@@ -686,7 +1103,139 @@ async function updateSalaryStatus(id, status) {
 }
 
 async function printSalarySlip(id) {
-    alert('Salary slip print feature coming soon!');
+    try {
+        if (typeof html2pdf === 'undefined') {
+            showAlert('PDF library not loaded (html2pdf).', 'danger');
+            return;
+        }
+
+        let sal;
+        try {
+            sal = await fetchAPI(`/salaries/${id}`);
+        } catch (fetchErr) {
+            // fallback to reading values from the table row if API fetch fails
+            const row = document.querySelector(`#salariesTable tbody tr[data-salary-id="${id}"]`);
+            if (row) {
+                sal = {
+                    id: id,
+                    name: row.children[0].innerText.trim(),
+                    month: (row.children[1].innerText && row.children[1].innerText.trim()) || '',
+                    daysPresent: Number(row.dataset.days) || Number(row.children[2].innerText.trim()) || 0,
+                    basicSalary: Number(row.dataset.basic) || parseFloat((row.children[3].innerText || '').replace(/[^0-9.-]+/g, '')) || 0,
+                    totalAdvance: Number(row.dataset.advance) || parseFloat((row.children[4].innerText || '').replace(/[^0-9.-]+/g, '')) || 0,
+                    totalDeductions: Number(row.dataset.deductions) || parseFloat((row.children[5].innerText || '').replace(/[^0-9.-]+/g, '')) || 0,
+                    netSalary: Number(row.dataset.net) || parseFloat((row.children[6].innerText || '').replace(/[^0-9.-]+/g, '')) || 0,
+                    status: (row.children[7].innerText || '').trim() || 'pending'
+                };
+            } else {
+                throw fetchErr;
+            }
+        }
+
+        if (!sal || !sal.id) {
+            showAlert('Salary record not found', 'warning');
+            return;
+        }
+
+        const monthLabel = sal.month ? new Date(sal.month + '-01').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : '';
+        const filename = `Salary_${(sal.name || 'labour').replace(/\s+/g, '_')}_${sal.month || ''}.pdf`;
+
+        const basicSalary = Number(sal.basicSalary) || 0;
+        const overtimeHours = Number(sal.overtimeHours) || 0;
+        const overtimePay = Number(sal.overtimePay) || 0;
+        const totalAdvance = Number(sal.totalAdvance) || 0;
+        const totalDeductions = Number(sal.totalDeductions) || 0;
+        const netSalary = Number(sal.netSalary) || (basicSalary + overtimePay - totalAdvance - totalDeductions);
+
+        const fmt = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
+
+        // Build invoice HTML with clearer layout and guaranteed amounts
+        const container = document.createElement('div');
+        container.style.width = '720px';
+        container.style.padding = '24px';
+        container.style.fontFamily = 'Helvetica, Arial, sans-serif';
+        container.style.color = '#222';
+        container.innerHTML = `
+            <div style="border-bottom:1px solid #ddd;padding-bottom:12px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <h2 style="margin:0;color:#333;">Labour Management</h2>
+                    <div style="color:#666;font-size:13px;">Invoice - Monthly Salary</div>
+                </div>
+                <div style="text-align:right;color:#666;font-size:13px;">
+                    <div>Date: ${new Date().toLocaleDateString('en-IN')}</div>
+                    <div>Month: ${monthLabel}</div>
+                    <div>Salary ID: ${sal.id || ''}</div>
+                </div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;margin-bottom:18px;">
+                <div>
+                    <strong>Employee:</strong>
+                    <div>${sal.name || ''}</div>
+                    <div>ID: ${sal.labourId || ''}</div>
+                </div>
+                <div style="text-align:right;">
+                    <strong>Status:</strong>
+                    <div>${sal.status || 'pending'}</div>
+                </div>
+            </div>
+
+            <table style="width:100%;border-collapse:collapse;margin-bottom:18px;font-size:14px;table-layout:fixed;">
+                <colgroup>
+                    <col style="width:65%">
+                    <col style="width:35%">
+                </colgroup>
+                <thead>
+                    <tr style="background:#f7f7f7;text-align:left;">
+                        <th style="padding:10px;border:1px solid #eee;">Description</th>
+                        <th style="padding:10px;border:1px solid #eee;text-align:right;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding:10px;border:1px solid #eee;">Basic Salary (days present: ${sal.daysPresent || 0})</td>
+                        <td style="padding:10px;border:1px solid #eee;text-align:right;white-space:nowrap;">${fmt.format(basicSalary)}</td>
+                    </tr>
+                    ${overtimeHours > 0 ? `
+                    <tr>
+                        <td style="padding:10px;border:1px solid #eee;">Overtime (${overtimeHours} hours @ 1.5x)</td>
+                        <td style="padding:10px;border:1px solid #eee;text-align:right;white-space:nowrap;">${fmt.format(overtimePay)}</td>
+                    </tr>
+                    ` : ''}
+                    <tr>
+                        <td style="padding:10px;border:1px solid #eee;">Total Advance</td>
+                        <td style="padding:10px;border:1px solid #eee;text-align:right;white-space:nowrap;">${fmt.format(totalAdvance)}</td>
+                    </tr>
+
+                    <tr style="font-weight:700;background:#fafafa;">
+                        <td style="padding:12px;border:1px solid #eee;">Net Salary</td>
+                        <td style="padding:12px;border:1px solid #eee;text-align:right;white-space:nowrap;">${fmt.format(netSalary)}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="font-size:12px;color:#666;">This is a system generated payslip for the month specified. Keep this document for your records.</div>
+        `;
+
+        document.body.appendChild(container);
+
+        // Generate PDF using html2pdf (bundled with html2pdf.bundle.min.js)
+        const opt = {
+            margin:       10,
+            filename:     filename,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        await html2pdf().set(opt).from(container).save();
+
+        // cleanup
+        document.body.removeChild(container);
+    } catch (err) {
+        console.error(err);
+        showAlert('Failed to generate PDF', 'danger');
+    }
 }
 
 // Helper functions
@@ -721,23 +1270,37 @@ async function fetchAPI(endpoint, method = 'GET', data = null) {
             'Authorization': `Bearer ${authToken}`
         }
     };
-    
+
     if (data && method !== 'GET') {
         options.body = JSON.stringify(data);
     }
-    
+
     const response = await fetch(`${API_URL}${endpoint}`, options);
-    
+
     if (response.status === 401) {
         logout();
+        throw new Error('Unauthorized');
     }
-    
+
+    // Try to parse body as text first so we can handle non-JSON errors
+    const text = await response.text();
+
     if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'API Error');
+        let errMsg = text || `Request failed with status ${response.status}`;
+        try {
+            const parsed = JSON.parse(text || '{}');
+            errMsg = parsed.error || parsed.message || errMsg;
+        } catch (e) {
+            // not JSON, keep text
+        }
+        throw new Error(errMsg);
     }
-    
-    return response.json();
+
+    try {
+        return text ? JSON.parse(text) : {};
+    } catch (e) {
+        return text;
+    }
 }
 
 function showAlert(message, type = 'info') {
@@ -781,7 +1344,7 @@ function getStatusColor(status) {
         'present': 'success',
         'absent': 'danger',
         'half-day': 'warning',
-        'sick-leave': 'info'
+        'overtime': 'info'
     };
     return colors[status] || 'secondary';
 }

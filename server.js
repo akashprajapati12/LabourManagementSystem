@@ -24,8 +24,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
 
 // Routes
@@ -36,6 +36,15 @@ app.use('/api/advances', advancesRoutes);
 app.use('/api/deductions', deductionsRoutes);
 app.use('/api/leaves', leavesRoutes);
 app.use('/api/salaries', salariesRoutes);
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
 
 // Serve frontend
 app.get('/', (req, res) => {

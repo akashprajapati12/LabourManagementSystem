@@ -23,66 +23,99 @@ router.post('/calculate', authenticateToken, (req, res) => {
       return res.status(404).json({ error: 'Labour not found' });
     }
 
-    // Count days present in the month
-    db.get(
-      `SELECT COUNT(*) as daysPresent FROM attendance 
-       WHERE labourId = ? AND status = 'present' AND strftime("%Y-%m", date) = ?`,
+    // Count full days (present), half days (half-day), and overtime separately
+    db.all(
+      `SELECT status, COUNT(*) as count FROM attendance 
+       WHERE labourId = ? AND strftime("%Y-%m", date) = ?
+       GROUP BY status`,
       [labourId, month],
-      (err, attendanceData) => {
+      (err, statusCounts) => {
         if (err) {
           return res.status(500).json({ error: err.message });
         }
 
-        const daysPresent = attendanceData.daysPresent || 0;
-        const basicSalary = labour.dailyRate * daysPresent;
+        let fullDays = 0;
+        let halfDays = 0;
 
-        // Get total advances
+        // Count full and half days
+        statusCounts.forEach(row => {
+          if (row.status === 'present' || row.status === 'overtime') {
+            fullDays += row.count;
+          } else if (row.status === 'half-day') {
+            halfDays += row.count;
+          }
+        });
+
+        // Calculate working days: full days + (half days * 0.5)
+        const workingDays = fullDays + (halfDays * 0.5);
+        const basicSalary = labour.dailyRate * workingDays;
+
+        // Get total overtime hours for the month
         db.get(
-          `SELECT COALESCE(SUM(amount), 0) as totalAdvance FROM advances 
-           WHERE labourId = ? AND status = 'pending' AND strftime("%Y-%m", date) = ?`,
+          `SELECT COALESCE(SUM(CAST(hours AS REAL)), 0) as totalOvertimeHours FROM attendance 
+           WHERE labourId = ? AND status = 'overtime' AND strftime("%Y-%m", date) = ?`,
           [labourId, month],
-          (err, advanceData) => {
+          (err, overtimeData) => {
             if (err) {
               return res.status(500).json({ error: err.message });
             }
 
-            const totalAdvance = advanceData.totalAdvance || 0;
+            const totalOvertimeHours = overtimeData.totalOvertimeHours || 0;
+            const STANDARD_HOURS_PER_DAY = 8; // Standard workday hours
+            const hourlyRate = labour.dailyRate / STANDARD_HOURS_PER_DAY;
+            const overtimePay = totalOvertimeHours * hourlyRate; // 1x rate for overtime hours
 
-            // Get total deductions
+            // Get total advances
             db.get(
-              `SELECT COALESCE(SUM(amount), 0) as totalDeductions FROM deductions 
-               WHERE labourId = ? AND strftime("%Y-%m", date) = ?`,
+              `SELECT COALESCE(SUM(amount), 0) as totalAdvance FROM advances 
+               WHERE labourId = ? AND status = 'pending' AND strftime("%Y-%m", date) = ?`,
               [labourId, month],
-              (err, deductionData) => {
+              (err, advanceData) => {
                 if (err) {
                   return res.status(500).json({ error: err.message });
                 }
 
-                const totalDeductions = deductionData.totalDeductions || 0;
-                const netSalary = basicSalary - totalAdvance - totalDeductions;
+                const totalAdvance = advanceData.totalAdvance || 0;
 
-                // Create salary record
-                db.run(
-                  `INSERT OR REPLACE INTO salaries 
-                   (labourId, month, basicSalary, daysPresent, totalAdvance, totalDeductions, netSalary) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                  [labourId, month, basicSalary, daysPresent, totalAdvance, totalDeductions, netSalary],
-                  function (err) {
+                // Get total deductions
+                db.get(
+                  `SELECT COALESCE(SUM(amount), 0) as totalDeductions FROM deductions 
+                   WHERE labourId = ? AND strftime("%Y-%m", date) = ?`,
+                  [labourId, month],
+                  (err, deductionData) => {
                     if (err) {
                       return res.status(500).json({ error: err.message });
                     }
-                    res.status(201).json({
-                      message: 'Salary calculated successfully',
-                      salary: {
-                        labourId,
-                        month,
-                        basicSalary,
-                        daysPresent,
-                        totalAdvance,
-                        totalDeductions,
-                        netSalary
+
+                    const totalDeductions = deductionData.totalDeductions || 0;
+                    const netSalary = basicSalary + overtimePay - totalAdvance - totalDeductions;
+
+                    // Create salary record
+                    db.run(
+                      `INSERT OR REPLACE INTO salaries 
+                       (labourId, month, basicSalary, daysPresent, overtimeHours, overtimePay, totalAdvance, totalDeductions, netSalary) 
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                      [labourId, month, basicSalary, workingDays, totalOvertimeHours, overtimePay, totalAdvance, totalDeductions, netSalary],
+                      function (err) {
+                        if (err) {
+                          return res.status(500).json({ error: err.message });
+                        }
+                        res.status(201).json({
+                          message: 'Salary calculated successfully',
+                          salary: {
+                            labourId,
+                            month,
+                            basicSalary,
+                            daysPresent: workingDays,
+                            overtimeHours: totalOvertimeHours,
+                            overtimePay,
+                            totalAdvance,
+                            totalDeductions,
+                            netSalary
+                          }
+                        });
                       }
-                    });
+                    );
                   }
                 );
               }
@@ -144,6 +177,26 @@ router.get('/', authenticateToken, (req, res) => {
         return res.status(500).json({ error: err.message });
       }
       res.json(salaries);
+    }
+  );
+});
+
+// Get salary by id
+router.get('/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const db = getDB();
+
+  db.get(
+    `SELECT s.*, l.name FROM salaries s JOIN labours l ON s.labourId = l.id WHERE s.id = ?`,
+    [id],
+    (err, salary) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (!salary) {
+        return res.status(404).json({ error: 'Salary record not found' });
+      }
+      res.json(salary);
     }
   );
 });

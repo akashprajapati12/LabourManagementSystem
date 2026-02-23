@@ -46,11 +46,19 @@ const createTables = () => {
         bankAccount TEXT,
         dailyRate REAL DEFAULT 0,
         designation TEXT,
+        photo LONGTEXT,
         joinDate DATETIME DEFAULT CURRENT_TIMESTAMP,
         status TEXT DEFAULT 'active',
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    
+    // Add photo column if it doesn't exist (for existing databases)
+    db.run(`ALTER TABLE labours ADD COLUMN photo LONGTEXT`, (err) => {
+      if (err && !err.message.includes('duplicate')) {
+        console.log('Note: photo column may already exist');
+      }
+    });
 
     // Attendance table
     db.run(`
@@ -119,6 +127,8 @@ const createTables = () => {
         month DATE NOT NULL,
         basicSalary REAL NOT NULL,
         daysPresent INTEGER DEFAULT 0,
+        overtimeHours REAL DEFAULT 0,
+        overtimePay REAL DEFAULT 0,
         totalAdvance REAL DEFAULT 0,
         totalDeductions REAL DEFAULT 0,
         netSalary REAL NOT NULL,
