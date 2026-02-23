@@ -831,16 +831,16 @@ async function loadAttendance() {
                     <td>${hours}</td>
                     <td>
                         <div class="btn-group btn-group-sm" role="group">
-                            <button class="btn btn-outline-success" style="border-radius: 20px;" title="Present" onclick="markAttendance(${labour.id}, '${selectedDate}', 'present')">
+                            <button class="btn btn-outline-success btn-small-round" title="Present" onclick="markAttendance(${labour.id}, '${selectedDate}', 'present')">
                                 <i class="fas fa-check"></i> P
                             </button>
-                            <button class="btn btn-outline-danger" style="border-radius: 20px;" title="Absent" onclick="markAttendance(${labour.id}, '${selectedDate}', 'absent')">
+                            <button class="btn btn-outline-danger btn-small-round" title="Absent" onclick="markAttendance(${labour.id}, '${selectedDate}', 'absent')">
                                 <i class="fas fa-times"></i> A
                             </button>
-                            <button class="btn btn-outline-warning" style="border-radius: 20px;" title="Half-day" onclick="markAttendance(${labour.id}, '${selectedDate}', 'half-day')">
+                            <button class="btn btn-outline-warning btn-small-round" title="Half-day" onclick="markAttendance(${labour.id}, '${selectedDate}', 'half-day')">
                                 <i class="fas fa-minus"></i> H-D
                             </button>
-                            <button class="btn btn-outline-primary" style="border-radius: 20px;" title="Overtime" onclick="showOvertimeModal(${labour.id}, '${labour.name}', '${selectedDate}', ${hours})">
+                            <button class="btn btn-outline-primary btn-small-round" title="Overtime" onclick="showOvertimeModal(${labour.id}, '${labour.name}', '${selectedDate}', ${hours})">
                                 <i class="fas fa-clock"></i> OT
                             </button>
                         </div>
