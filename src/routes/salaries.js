@@ -1,8 +1,24 @@
+
 const express = require('express');
 const { getDB } = require('../db');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Delete salary by id
+router.delete('/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const db = getDB();
+  db.run('DELETE FROM salaries WHERE id = ?', [id], function (err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Salary record not found' });
+    }
+    res.json({ message: 'Salary deleted successfully' });
+  });
+});
 
 // Calculate and create salary record
 router.post('/calculate', authenticateToken, (req, res) => {
@@ -51,17 +67,21 @@ router.post('/calculate', authenticateToken, (req, res) => {
         const basicSalary = labour.dailyRate * workingDays;
 
         // Get total overtime hours for the month
-        db.get(
-          `SELECT COALESCE(SUM(CAST(hours AS REAL)), 0) as totalOvertimeHours FROM attendance 
+        db.all(
+          `SELECT hours FROM attendance 
            WHERE labourId = ? AND status = 'overtime' AND strftime("%Y-%m", date) = ?`,
           [labourId, month],
-          (err, overtimeData) => {
+          (err, overtimeRows) => {
             if (err) {
               return res.status(500).json({ error: err.message });
             }
 
-            const totalOvertimeHours = overtimeData.totalOvertimeHours || 0;
             const STANDARD_HOURS_PER_DAY = 8; // Standard workday hours
+            let totalOvertimeHours = 0;
+            overtimeRows.forEach(row => {
+              const workedHours = Number(row.hours) || 0;
+              totalOvertimeHours += Math.max(workedHours - STANDARD_HOURS_PER_DAY, 0);
+            });
             const hourlyRate = labour.dailyRate / STANDARD_HOURS_PER_DAY;
             const overtimePay = totalOvertimeHours * hourlyRate; // 1x rate for overtime hours
 

@@ -1,6 +1,18 @@
+// Delete salary record
+async function deleteSalary(id) {
+    if (confirm('Delete this salary record?')) {
+        try {
+            await fetchAPI(`/salaries/${id}`, 'DELETE');
+            showAlert('Salary deleted successfully', 'success');
+            loadSalaries();
+        } catch (error) {
+            showAlert('Error deleting salary', 'danger');
+        }
+    }
+}
 // API Base URL - Handle both mobile and desktop
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-const API_URL = '/api';
+const API_URL = 'http://localhost:5000/api';
 
 let authToken = localStorage.getItem('authToken');
 let currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -577,14 +589,23 @@ function showAttendanceCalendar(labourId, labourName) {
 
 async function loadAttendanceCalendar(labourId, month) {
     try {
+        const safeMonth = /^\d{4}-\d{2}$/.test(String(month || ''))
+            ? String(month)
+            : new Date().toISOString().slice(0, 7);
         const attendance = await fetchAPI('/attendance');
+        const getDateOnly = (value) => {
+            if (!value) return '';
+            const str = String(value);
+            return str.includes('T') ? str.split('T')[0] : str.slice(0, 10);
+        };
         const labourAttendance = attendance.filter(a => {
-            const aMonth = new Date(a.date).toISOString().slice(0, 7);
-            return a.labourId === labourId && aMonth === month;
+            const dateOnly = getDateOnly(a?.date);
+            const aMonth = dateOnly ? dateOnly.slice(0, 7) : '';
+            return Number(a?.labourId) === Number(labourId) && aMonth === safeMonth;
         });
 
         const calendarDiv = document.getElementById('attendanceCalendar');
-        const monthLabel = new Date(month + '-01').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+        const monthLabel = new Date(safeMonth + '-01').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
         
         let html = `<h6 style="margin-bottom: 15px;">${monthLabel}</h6><div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;">`;
         
@@ -595,7 +616,7 @@ async function loadAttendanceCalendar(labourId, month) {
         });
         
         // Get first day of month and number of days
-        const [year, monthNum] = month.split('-');
+        const [year, monthNum] = safeMonth.split('-');
         const firstDay = new Date(year, monthNum - 1, 1).getDay();
         const daysInMonth = new Date(year, monthNum, 0).getDate();
         
@@ -604,27 +625,56 @@ async function loadAttendanceCalendar(labourId, month) {
             html += `<div style="padding: 8px; text-align: center; background: #f5f5f5; border-radius: 4px;"></div>`;
         }
         
+        // Track month-wise totals shown in legend
+        const attendanceTotals = {
+            present: 0,
+            overtime: 0,
+            halfDay: 0,
+            absent: 0
+        };
+        let overtimeExtraHours = 0;
+
+        labourAttendance.forEach(record => {
+            if (record?.status === 'overtime') {
+                const workedHours = Number(record?.hours) || 0;
+                // Only add extra hours (workedHours - 8) to OT
+                overtimeExtraHours += Math.max(workedHours - 8, 0);
+                // Count overtime day as present
+                attendanceTotals.present += 1;
+            }
+        });
+
         // Add day cells
         for (let day = 1; day <= daysInMonth; day++) {
-            const dateStr = `${month}-${String(day).padStart(2, '0')}`;
-            const attRecord = labourAttendance.find(a => a.date.split('T')[0] === dateStr);
+            const dateStr = `${safeMonth}-${String(day).padStart(2, '0')}`;
+            const attRecord = labourAttendance.find(a => getDateOnly(a?.date) === dateStr);
             const status = attRecord ? attRecord.status : 'absent';
-            let bgColor = '#f8d7da';
-            let textColor = '#721c24';
+            let bgColor = '#7B241C'; // dark red for absent
+            let textColor = '#fff';
             let statusLabel = 'A';
             
             if (status === 'present') {
-                bgColor = '#d4edda';
-                textColor = '#155724';
+                bgColor = '#145A32'; // dark green for present
+                textColor = '#fff';
                 statusLabel = 'P';
             } else if (status === 'half-day') {
                 bgColor = '#fff3cd';
                 textColor = '#856404';
                 statusLabel = 'H';
             } else if (status === 'overtime') {
-                bgColor = '#d1ecf1';
-                textColor = '#0c5460';
+                bgColor = '#0c5460';
+                textColor = '#fff';
                 statusLabel = 'OT';
+            }
+
+            if (status === 'present') {
+                attendanceTotals.present += 1;
+            } else if (status === 'overtime') {
+                attendanceTotals.overtime += 1;
+            } else if (status === 'half-day') {
+                attendanceTotals.halfDay += 1;
+            } else {
+                attendanceTotals.absent += 1;
             }
             
             html += `<div style="padding: 8px; text-align: center; background: ${bgColor}; color: ${textColor}; border-radius: 4px; font-weight: 500; cursor: pointer; min-height: 45px; display: flex; flex-direction: column; justify-content: center; align-items: center;" title="${day} - ${status}" data-bs-toggle="tooltip"><small>${day}</small><small>${statusLabel}</small></div>`;
@@ -633,15 +683,16 @@ async function loadAttendanceCalendar(labourId, month) {
         html += `</div>
         <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 6px;">
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 13px;">
-                <div><span style="display: inline-block; width: 12px; height: 12px; background: #d4edda; border-radius: 3px; margin-right: 5px;"></span>P = Present</div>
-                <div><span style="display: inline-block; width: 12px; height: 12px; background: #d1ecf1; border-radius: 3px; margin-right: 5px;"></span>OT = Overtime</div>
-                <div><span style="display: inline-block; width: 12px; height: 12px; background: #fff3cd; border-radius: 3px; margin-right: 5px;"></span>H = Half-day</div>
-                <div><span style="display: inline-block; width: 12px; height: 12px; background: #f8d7da; border-radius: 3px; margin-right: 5px;"></span>A = Absent</div>
+                <div><span style="display: inline-block; width: 12px; height: 12px; background: #d4edda; border-radius: 3px; margin-right: 5px;"></span>P = Present (${attendanceTotals.present})</div>
+                <div><span style="display: inline-block; width: 12px; height: 12px; background: #d1ecf1; border-radius: 3px; margin-right: 5px;"></span>OT = Overtime (${attendanceTotals.overtime} days, ${overtimeExtraHours.toFixed(1)}h extra)</div>
+                <div><span style="display: inline-block; width: 12px; height: 12px; background: #fff3cd; border-radius: 3px; margin-right: 5px;"></span>H = Half-day (${attendanceTotals.halfDay})</div>
+                <div><span style="display: inline-block; width: 12px; height: 12px; background: #f8d7da; border-radius: 3px; margin-right: 5px;"></span>A = Absent (${attendanceTotals.absent})</div>
             </div>
         </div>`;
         calendarDiv.innerHTML = html;
     } catch (error) {
-        showAlert('Error loading attendance calendar', 'danger');
+        console.error('loadAttendanceCalendar failed:', error);
+        showAlert(`Error loading attendance calendar: ${error?.message || 'Unknown error'}`, 'danger');
     }
 }
 
@@ -773,24 +824,24 @@ async function loadAttendance() {
                 <tr>
                     <td><strong>${labour.name}</strong></td>
                     <td>
-                        <span class="badge bg-${getStatusColor(status)}">
+                        <span class="badge" style="background: ${getStatusColor(status)}; color: #fff; font-weight: 600;">
                             ${status === 'not-marked' ? 'Not Marked' : status}
                         </span>
                     </td>
                     <td>${hours}</td>
                     <td>
                         <div class="btn-group btn-group-sm" role="group">
-                            <button class="btn btn-outline-success" style="border-radius: 20px;" onclick="markAttendance(${labour.id}, '${selectedDate}', 'present')">
-                                <i class="fas fa-check"></i> Present
+                            <button class="btn btn-outline-success" style="border-radius: 20px;" title="Present" onclick="markAttendance(${labour.id}, '${selectedDate}', 'present')">
+                                <i class="fas fa-check"></i> P
                             </button>
-                            <button class="btn btn-outline-danger" style="border-radius: 20px;" onclick="markAttendance(${labour.id}, '${selectedDate}', 'absent')">
-                                <i class="fas fa-times"></i> Absent
+                            <button class="btn btn-outline-danger" style="border-radius: 20px;" title="Absent" onclick="markAttendance(${labour.id}, '${selectedDate}', 'absent')">
+                                <i class="fas fa-times"></i> A
                             </button>
-                            <button class="btn btn-outline-warning" style="border-radius: 20px;" onclick="markAttendance(${labour.id}, '${selectedDate}', 'half-day')">
-                                <i class="fas fa-minus"></i> Half-day
+                            <button class="btn btn-outline-warning" style="border-radius: 20px;" title="Half-day" onclick="markAttendance(${labour.id}, '${selectedDate}', 'half-day')">
+                                <i class="fas fa-minus"></i> H-D
                             </button>
-                            <button class="btn btn-outline-primary" style="border-radius: 20px;" onclick="showOvertimeModal(${labour.id}, '${labour.name}', '${selectedDate}', ${hours})">
-                                <i class="fas fa-clock"></i> Overtime
+                            <button class="btn btn-outline-primary" style="border-radius: 20px;" title="Overtime" onclick="showOvertimeModal(${labour.id}, '${labour.name}', '${selectedDate}', ${hours})">
+                                <i class="fas fa-clock"></i> OT
                             </button>
                         </div>
                     </td>
@@ -805,6 +856,10 @@ async function loadAttendance() {
 
 async function markAttendance(labourId, date, status, hours = 8) {
     try {
+        // If status is half-day, set hours to 4
+        if (status === 'half-day') {
+            hours = 4;
+        }
         const data = {
             labourId: labourId,
             date: date,
@@ -812,7 +867,6 @@ async function markAttendance(labourId, date, status, hours = 8) {
             hours: hours,
             notes: ''
         };
-        
         await fetchAPI('/attendance', 'POST', data);
         showAlert(`Attendance marked as ${status}`, 'success');
         loadAttendance();
@@ -1101,6 +1155,9 @@ async function loadSalaries() {
                                 <button class="btn btn-sm btn-info" onclick="printSalarySlip(${sal.id})">
                                     <i class="fas fa-print"></i> Print
                                 </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteSalary(${sal.id})">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
                             </div>
                         </div>
                     </td>
@@ -1127,6 +1184,9 @@ async function loadSalaries() {
                             <button class="btn btn-sm btn-info" onclick="printSalarySlip(${sal.id})">
                                 <i class="fas fa-print"></i>
                             </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteSalary(${sal.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -1134,6 +1194,19 @@ async function loadSalaries() {
         }
     } catch (error) {
         showAlert('Error loading salaries', 'danger');
+    }
+}
+
+// Delete salary record
+async function deleteSalary(id) {
+    if (confirm('Delete this salary record?')) {
+        try {
+            await fetchAPI(`/salaries/${id}`, 'DELETE');
+            showAlert('Salary deleted successfully', 'success');
+            loadSalaries();
+        } catch (error) {
+            showAlert('Error deleting salary', 'danger');
+        }
     }
 }
 
@@ -1405,12 +1478,12 @@ function showAlert(message, type = 'info') {
 
 function getStatusColor(status) {
     const colors = {
-        'present': 'success',
-        'absent': 'danger',
-        'half-day': 'warning',
-        'overtime': 'info'
+        'present': '#145A32', // dark green
+        'absent': '#7B241C', // dark red
+        'half-day': '#FFC107', // yellow
+        'overtime': '#0dcaf0' // info blue
     };
-    return colors[status] || 'secondary';
+    return colors[status] || '#6c757d'; // default gray
 }
 
 function getLeaveStatusColor(status) {
