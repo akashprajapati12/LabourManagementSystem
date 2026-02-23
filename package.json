@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "description": "Complete Labour Management System",
   "main": "server.js",
+  "engines": {
+    "node": ">=18.x"
+  },
   "scripts": {
-    "start": "node server.js",
+    "start": "node start_server.js",
     "dev": "node server.js"
   },
   "keywords": [],

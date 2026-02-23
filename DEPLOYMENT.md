@@ -67,8 +67,16 @@ docker-compose up -d
 
 #### Heroku
 ```bash
+# Add this to your package.json if not already present
+"engines": {
+  "node": ">=18.x"
+}
+
+# Deploy to Heroku
 heroku create your-labour-app
-heroku addons:create heroku-postgresql:hobby-dev
+heroku config:set NODE_ENV=production
+heroku config:set JWT_SECRET=your_secure_secret_key
+heroku addons:create heroku-postgresql:hobby-dev  # if using PostgreSQL
 git push heroku main
 ```
 
@@ -76,11 +84,24 @@ git push heroku main
 1. Connect GitHub repository to Railway
 2. Railway auto-deploys on push
 3. Add environment variables in dashboard
+4. Set build command to: `npm install` (if needed)
+5. Set start command to: `npm start`
+
+#### Render
+1. Create a new Web Service on Render
+2. Connect your GitHub repository
+3. Set environment variables in Render dashboard
+4. Set Build Command: `npm install`
+5. Set Start Command: `npm start`
 
 #### Vercel (Backend)
-```bash
-vercel --prod
-```
+1. Add `@vercel/node` to your dependencies if creating API routes
+2. Create `vercel.json` configuration file
+3. Deploy using: `vercel --prod`
+
+## GitHub Pages Limitation Notice
+
+⚠️ **Important**: This application CANNOT be deployed to GitHub Pages as GitHub Pages only hosts static files (HTML, CSS, JavaScript) and cannot run Node.js applications with server-side logic and database interactions. GitHub Pages is designed for frontend-only applications, not full-stack applications like this Labour Management System. To deploy this application, you must use a cloud platform that supports Node.js applications such as Heroku, Railway, Render, or AWS.
 
 ## Environment Variables
 

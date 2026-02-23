@@ -106,6 +106,8 @@ npm start
 
 ### Production Deployment
 
+⚠️ **IMPORTANT NOTICE**: This application CANNOT be deployed to GitHub Pages because GitHub Pages only hosts static files (HTML, CSS, JavaScript) and cannot run Node.js applications with server-side logic and database interactions. To deploy this full-stack application, you must use a cloud platform that supports Node.js applications.
+
 #### Option 1: Traditional Hosting
 1. Upload all files to your web server
 2. Install Node.js on the server
@@ -114,24 +116,41 @@ npm start
 5. Start the application with `npm start`
 6. Use a process manager like PM2 for production
 
-#### Option 2: Cloud Platforms
+#### Option 2: Cloud Platforms (Recommended)
 
 **Heroku:**
 ```bash
+# Make sure your package.json includes the engines field
+"engines": {
+  "node": ">=18.x"
+}
+
+# Deploy to Heroku
 heroku create your-app-name
-heroku addons:create heroku-postgresql:hobby-dev
+heroku config:set NODE_ENV=production
+heroku config:set JWT_SECRET=your_secure_secret_key
+heroku addons:create heroku-postgresql:hobby-dev  # if using PostgreSQL
 git push heroku main
 ```
 
-**Vercel (Backend):**
-```bash
-vercel --prod
-```
-
 **Railway:**
-1. Connect your GitHub repository
+1. Connect your GitHub repository to Railway
 2. Railway will automatically deploy on push
 3. Add environment variables in Railway dashboard
+4. Set build command to: `npm install` (if needed)
+5. Set start command to: `npm start`
+
+**Render:**
+1. Create a new Web Service on Render
+2. Connect your GitHub repository
+3. Set environment variables in Render dashboard
+4. Set Build Command: `npm install`
+5. Set Start Command: `npm start`
+
+**Vercel (Backend):**
+1. Add `@vercel/node` to your dependencies if creating API routes
+2. Create `vercel.json` configuration file
+3. Deploy using: `vercel --prod`
 
 #### Option 3: Docker Deployment
 ```bash
@@ -139,7 +158,7 @@ vercel --prod
 docker build -t labour-mgmt-system .
 
 # Run container
-docker run -p 5000:5000 -e JWT_SECRET=your_secret labour-mgmt-system
+docker run -p 5000:5000 -e JWT_SECRET=your_secure_secret_key labour-mgmt-system
 ```
 
 ### Environment Variables for Production

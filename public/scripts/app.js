@@ -1,13 +1,67 @@
-// API Base URL
-const API_URL = 'http://localhost:5000/api';
+// API Base URL - Handle both mobile and desktop
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+const API_URL = isMobile ? '/api' : '/api';
+
 let authToken = localStorage.getItem('authToken');
 let currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 
+// Mobile-specific debugging
+if (isMobile) {
+    console.log('📱 Mobile device detected');
+    console.log('User Agent:', navigator.userAgent);
+}
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
+    // Mobile-specific initialization
+    if (isMobile) {
+        console.log('📱 Initializing mobile app');
+        // Add mobile-specific styles or adjustments here
+        document.body.classList.add('mobile-device');
+        
+        // Setup network monitoring
+        setupNetworkMonitoring();
+    }
+    
     checkAuth();
     setupEventListeners();
+    
+    // Mobile network monitoring
+    if (isMobile && navigator.connection) {
+        console.log('📱 Network info:', navigator.connection);
+    }
 });
+
+// Mobile network monitoring
+function setupNetworkMonitoring() {
+    const networkStatus = document.getElementById('networkStatus');
+    
+    function updateNetworkStatus() {
+        if (navigator.onLine) {
+            networkStatus.textContent = 'Online';
+            networkStatus.className = 'network-status online';
+        } else {
+            networkStatus.textContent = 'Offline - Please check your connection';
+            networkStatus.className = 'network-status';
+        }
+        networkStatus.style.display = navigator.onLine ? 'none' : 'block';
+    }
+    
+    // Initial check
+    updateNetworkStatus();
+    
+    // Event listeners
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+    
+    // Connection change monitoring (if available)
+    if (navigator.connection) {
+        navigator.connection.addEventListener('change', () => {
+            console.log('📱 Connection changed:', navigator.connection);
+            updateNetworkStatus();
+        });
+    }
+}
 
 // Check authentication
 function checkAuth() {
@@ -208,14 +262,35 @@ async function handleLogin(e) {
     const username = document.getElementById('loginUsername').value;
     const password = document.getElementById('loginPassword').value;
     
+    // Basic validation
+    if (!username || !password) {
+        showAlert('Please enter both username and password', 'danger');
+        return;
+    }
+    
     try {
+        console.log('📱 Mobile login attempt:', isMobile);
+        console.log('Attempting login with:', { username, password: '***' });
+        
+        // Mobile-specific timeout handling
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for mobile
+        
         const response = await fetch(`${API_URL}/auth/login`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ username, password }),
+            signal: controller.signal
         });
         
+        clearTimeout(timeoutId);
+        console.log('Login response status:', response.status);
+        
         const data = await response.json();
+        console.log('Login response data:', data);
         
         if (response.ok) {
             authToken = data.token;
@@ -229,7 +304,28 @@ async function handleLogin(e) {
             showAlert(data.error || 'Login failed', 'danger');
         }
     } catch (error) {
-        showAlert('Error logging in', 'danger');
+        console.error('Login error:', error);
+        
+        // Mobile-specific error messages
+        let errorMessage = 'Error connecting to server. Please try again.';
+        
+        if (error.name === 'AbortError') {
+            errorMessage = 'Request timed out. Please check your internet connection and try again.';
+        } else if (error.message.includes('Failed to fetch')) {
+            errorMessage = 'Network error. Please check your internet connection.';
+        }
+        
+        showAlert(errorMessage, 'danger');
+        
+        // Mobile network diagnostics
+        if (isMobile) {
+            console.log('📱 Mobile network diagnostics:');
+            console.log('- Online status:', navigator.onLine);
+            if (navigator.connection) {
+                console.log('- Network type:', navigator.connection.effectiveType);
+                console.log('- Downlink:', navigator.connection.downlink);
+            }
+        }
     }
 }
 
@@ -241,14 +337,28 @@ async function handleRegister(e) {
     const name = document.getElementById('regName').value;
     const email = document.getElementById('regEmail').value;
     
+    // Basic validation
+    if (!username || !password || !name) {
+        showAlert('Username, password, and name are required', 'danger');
+        return;
+    }
+    
+    if (password.length < 6) {
+        showAlert('Password must be at least 6 characters long', 'danger');
+        return;
+    }
+    
     try {
+        console.log('Attempting registration with:', { username, name, email });
         const response = await fetch(`${API_URL}/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password, name, email })
         });
         
+        console.log('Registration response status:', response.status);
         const data = await response.json();
+        console.log('Registration response data:', data);
         
         if (response.ok) {
             showAlert('Registration successful! Please login.', 'success');
@@ -258,7 +368,8 @@ async function handleRegister(e) {
             showAlert(data.error || 'Registration failed', 'danger');
         }
     } catch (error) {
-        showAlert('Error registering', 'danger');
+        console.error('Registration error:', error);
+        showAlert('Error connecting to server. Please try again.', 'danger');
     }
 }
 

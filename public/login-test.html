@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Test - Labour Management System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔧 Login Diagnostic Tool</h1>
+        <p>This tool will help diagnose login issues with your Labour Management System.</p>
+        
+        <div class="test-section">
+            <h3>Network Test</h3>
+            <button onclick="testNetwork()">Test Network Connectivity</button>
+            <div id="networkResult" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>API Health Check</h3>
+            <button onclick="testAPIHealth()">Test API Health</button>
+            <div id="healthResult" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Login Test</h3>
+            <div class="form-group">
+                <label>Username:</label>
+                <input type="text" id="username" value="admin">
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="password" value="admin123">
+            </div>
+            <button onclick="testLogin()">Test Login</button>
+            <div id="loginResult" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Browser Information</h3>
+            <pre id="browserInfo"></pre>
+        </div>
+    </div>
+
+    <script>
+        // Display browser information
+        document.getElementById('browserInfo').textContent = JSON.stringify({
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            language: navigator.language,
+            onLine: navigator.onLine,
+            cookieEnabled: navigator.cookieEnabled
+        }, null, 2);
+
+        async function testNetwork() {
+            const result = document.getElementById('networkResult');
+            result.className = 'result info';
+            result.style.display = 'block';
+            result.innerHTML = 'Testing network connectivity...';
+            
+            try {
+                const response = await fetch('/api/health', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        <strong>✅ Network Test Passed</strong><br>
+                        Status: ${response.status}<br>
+                        Response: ${JSON.stringify(data, null, 2)}
+                    `;
+                } else {
+                    result.className = 'result error';
+                    result.innerHTML = `
+                        <strong>❌ Network Test Failed</strong><br>
+                        Status: ${response.status}<br>
+                        Status Text: ${response.statusText}
+                    `;
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `
+                    <strong>❌ Network Error</strong><br>
+                    Error: ${error.message}<br>
+                    Type: ${error.name}
+                `;
+            }
+        }
+
+        async function testAPIHealth() {
+            const result = document.getElementById('healthResult');
+            result.className = 'result info';
+            result.style.display = 'block';
+            result.innerHTML = 'Testing API health...';
+            
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        <strong>✅ API Health Check Passed</strong><br>
+                        Status: ${response.status}<br>
+                        Server Time: ${data.timestamp}<br>
+                        Uptime: ${Math.floor(data.uptime)} seconds
+                    `;
+                } else {
+                    result.className = 'result error';
+                    result.innerHTML = `
+                        <strong>❌ API Health Check Failed</strong><br>
+                        Status: ${response.status}<br>
+                        Error: ${data.error || 'Unknown error'}
+                    `;
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `
+                    <strong>❌ API Health Error</strong><br>
+                    Error: ${error.message}
+                `;
+            }
+        }
+
+        async function testLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const result = document.getElementById('loginResult');
+            
+            if (!username || !password) {
+                result.className = 'result error';
+                result.style.display = 'block';
+                result.innerHTML = 'Please enter both username and password';
+                return;
+            }
+            
+            result.className = 'result info';
+            result.style.display = 'block';
+            result.innerHTML = 'Testing login...';
+            
+            try {
+                console.log('Login test with:', { username, password: '***' });
+                
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                console.log('Login response:', data);
+                
+                if (response.ok) {
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        <strong>✅ Login Successful</strong><br>
+                        Status: ${response.status}<br>
+                        Token: ${data.token ? data.token.substring(0, 30) + '...' : 'No token'}<br>
+                        User: ${data.user?.name || 'Unknown'}<br>
+                        Message: ${data.message}
+                    `;
+                } else {
+                    result.className = 'result error';
+                    result.innerHTML = `
+                        <strong>❌ Login Failed</strong><br>
+                        Status: ${response.status}<br>
+                        Error: ${data.error || 'Unknown error'}<br>
+                        Message: ${data.message || 'No message'}
+                    `;
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `
+                    <strong>❌ Login Error</strong><br>
+                    Error: ${error.message}<br>
+                    Type: ${error.name}
+                `;
+            }
+        }
+
+        // Auto-run network test on page load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                testNetwork();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

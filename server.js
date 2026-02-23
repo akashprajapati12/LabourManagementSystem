@@ -59,8 +59,23 @@ app.use((err, req, res, next) => {
 
 // Initialize database and start server
 initDB().then(() => {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Labour Management System running on http://localhost:${PORT}`);
+  });
+  
+  // Handle graceful shutdown
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully');
+    server.close(() => {
+      console.log('Process terminated');
+    });
+  });
+  
+  process.on('SIGINT', () => {
+    console.log('SIGINT received, shutting down gracefully');
+    server.close(() => {
+      console.log('Process terminated');
+    });
   });
 }).catch(err => {
   console.error('Failed to initialize database:', err);
