@@ -1,8 +1,14 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
+// determine default DB location
+// on Render the repository is read-only, writable storage is at /opt/render/project/data
+let defaultDb = './database.sqlite';
+if (process.env.RENDER || process.env.RENDER_SERVICE_ID) {
+  defaultDb = '/opt/render/project/data/database.sqlite';
+}
+
 // allow overriding path via environment (useful for deployments)
-const defaultDb = './database.sqlite';
 const dbPath = path.resolve(process.env.DB_PATH || defaultDb);
 
 // ensure containing directory exists (in case DB_PATH points to nested folder)
@@ -10,6 +16,8 @@ const dbDir = path.dirname(dbPath);
 if (!require('fs').existsSync(dbDir)) {
   require('fs').mkdirSync(dbDir, { recursive: true });
 }
+
+console.log('Using SQLite database at:', dbPath);
 
 let db = null;
 
