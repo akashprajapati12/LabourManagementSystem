@@ -10,9 +10,10 @@ async function deleteSalary(id) {
         }
     }
 }
-// API Base URL - Handle both mobile and desktop
+// API Base URL - handle both mobile and desktop
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-const API_URL = 'http://localhost:5000/api';
+// when deployed, use relative path so requests go to same host/origin
+const API_URL = `${window.location.origin}/api`;
 
 let authToken = localStorage.getItem('authToken');
 let currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
