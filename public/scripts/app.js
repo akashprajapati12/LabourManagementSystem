@@ -10,6 +10,9 @@ async function deleteSalary(id) {
         }
     }
 }
+// front-end version (increment when you deploy to bust caches)
+const APP_VERSION = '1';
+
 // API Base URL - handle both mobile and desktop
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 // when deployed, use relative path so requests go to same host/origin
