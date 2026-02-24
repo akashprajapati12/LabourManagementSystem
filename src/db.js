@@ -1,7 +1,15 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-const dbPath = path.resolve('./database.sqlite');
+// allow overriding path via environment (useful for deployments)
+const defaultDb = './database.sqlite';
+const dbPath = path.resolve(process.env.DB_PATH || defaultDb);
+
+// ensure containing directory exists (in case DB_PATH points to nested folder)
+const dbDir = path.dirname(dbPath);
+if (!require('fs').existsSync(dbDir)) {
+  require('fs').mkdirSync(dbDir, { recursive: true });
+}
 
 let db = null;
 
