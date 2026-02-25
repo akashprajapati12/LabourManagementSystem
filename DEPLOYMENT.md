@@ -111,20 +111,20 @@ Create a `.env` file with these variables:
 PORT=5000
 JWT_SECRET=your_secure_secret_key_here_change_this
 NODE_ENV=production
-DB_PATH=./database.sqlite
+MONGODB_URI=mongodb://127.0.0.1:27017/labourDB
 ```
 
 ## Database Management
 
 ### Backup Strategy
 ```bash
-# Manual backup
-cp database.sqlite backups/database_$(date +%Y%m%d_%H%M%S).sqlite
+# Example backup using mongodump (adjust URI as needed)
+mongodump --uri "$MONGODB_URI" --out backups/labour-db-$(date +%Y%m%d_%H%M%S)
 
-# Automated backup script
+# automated script
 #!/bin/bash
-cp database.sqlite backups/database_$(date +%Y%m%d_%H%M%S).sqlite
-find backups/ -name "database_*.sqlite" -mtime +7 -delete
+mongodump --uri "$MONGODB_URI" --out backups/labour-db-$(date +%Y%m%d_%H%M%S)
+find backups/ -maxdepth 1 -name "labour-db-*" -mtime +7 -exec rm -rf {} \;
 ```
 
 ### Migration

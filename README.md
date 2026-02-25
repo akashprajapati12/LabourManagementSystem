@@ -1,6 +1,6 @@
 # Labour Management System
 
-A complete web-based Labour Management System built with Node.js, Express, SQLite, and Bootstrap. This application helps manage labours, track attendance, calculate salaries, manage advances and deductions, and handle leave requests.
+A complete web-based Labour Management System built with Node.js, Express, MongoDB (via Mongoose), and Bootstrap. This application helps manage labours, track attendance, calculate salaries, manage advances and deductions, and handle leave requests.
 
 ## Features
 
@@ -56,7 +56,7 @@ A complete web-based Labour Management System built with Node.js, Express, SQLit
 ## Technology Stack
 
 - **Backend**: Node.js, Express.js
-- **Database**: SQLite
+- **Database**: MongoDB
 - **Authentication**: JWT, bcryptjs
 - **Frontend**: HTML5, CSS3, JavaScript (Vanilla)
 - **UI Framework**: Bootstrap 5
@@ -166,13 +166,15 @@ docker run -p 5000:5000 -e JWT_SECRET=your_secure_secret_key labour-mgmt-system
 PORT=5000
 JWT_SECRET=your_secure_secret_key_here
 NODE_ENV=production
-DB_PATH=./database.sqlite
+MONGODB_URI=mongodb://127.0.0.1:27017/labourDB // or your Atlas connection string
 ```
 
 ### Database Backup
-Regularly backup your `database.sqlite` file:
+Regularly backup your MongoDB database using tools like `mongodump` or your cloud provider's backup utilities.
+
 ```bash
-cp database.sqlite database_backup_$(date +%Y%m%d).sqlite
+# example using mongodump
+mongodump --uri "$MONGODB_URI" --out ~/backups/labour-db-$(date +%Y%m%d)
 ```
 
 ## Default Configuration
@@ -181,7 +183,7 @@ cp database.sqlite database_backup_$(date +%Y%m%d).sqlite
 PORT=5000
 JWT_SECRET=your_secret_key_change_this_in_production
 NODE_ENV=development
-DB_PATH=./database.sqlite
+MONGODB_URI=mongodb://127.0.0.1:27017/labourDB
 ```
 
 ## API Endpoints
@@ -189,6 +191,9 @@ DB_PATH=./database.sqlite
 ### Authentication
 - `POST /api/auth/register` - Register a new user
 - `POST /api/auth/login` - Login user
+- `PUT /api/auth/profile` - Update current user's profile (name, email, password)
+
+All endpoints are scoped to the authenticated user; one account cannot read or modify another user's data.
 
 ### Labours
 - `POST /api/labours` - Create labour
@@ -312,14 +317,14 @@ labour-mgmt-system/
 ├── server.js                # Main server file
 ├── package.json             # Dependencies
 ├── .env                     # Environment variables
-└── database.sqlite          # SQLite database (created on first run)
+└── (no local file)           # MongoDB stores data in the configured server
 ```
 
 ## Security Considerations
 
 1. **Change JWT Secret**: Update the `JWT_SECRET` in `.env` for production
 2. **HTTPS**: Use HTTPS in production
-3. **Database**: Backup your database.sqlite file regularly
+3. **Database**: Backup your MongoDB database regularly
 4. **Passwords**: Passwords are hashed using bcryptjs
 5. **API Authentication**: All API endpoints require valid JWT token
 
@@ -342,7 +347,7 @@ labour-mgmt-system/
 Change the PORT in `.env` file or kill the process using port 5000
 
 ### Database errors
-Delete `database.sqlite` file and restart the server to reinitialize the database
+For local development you can reset the MongoDB data by dropping the database or starting with an empty one (e.g. `mongo labourDB --eval "db.dropDatabase()"`).
 
 ### CORS errors
 Ensure the API_URL in `public/scripts/app.js` matches your server address

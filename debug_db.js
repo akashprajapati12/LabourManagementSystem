@@ -1,4 +1,7 @@
-const { initDB, getDB } = require('./src/db');
+console.warn('⚠️ debug_db.js is deprecated after migrating to MongoDB');
+process.exit(0);
+
+// const { initDB, getDB } = require('./src/db');
 
 async function debugDatabase() {
   try {

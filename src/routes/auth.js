@@ -1,109 +1,76 @@
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { getDB } = require('../db');
+const express = require("express");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const { mongoose } = require("../db");
 
+const { authenticateToken } = require('../middleware/auth');
 const router = express.Router();
 
-// Register user
-router.post('/register', (req, res) => {
-  const { username, password, name, email } = req.body;
+const User = mongoose.model("User", new mongoose.Schema({
+  username: { type: String, unique: true },
+  password: String,
+  name: String,
+  email: { type: String, unique: true, sparse: true },
+  role: { type: String, default: 'user' }
+}));
 
-  if (!username || !password || !name) {
-    return res.status(400).json({ error: 'Username, password, and name are required' });
-  }
-
-  // Validate password strength
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters long' });
-  }
-
-  const db = getDB();
-  const hashedPassword = bcrypt.hashSync(password, 10);
-
-  db.run(
-    'INSERT INTO users (username, password, name, email) VALUES (?, ?, ?, ?)',
-    [username, hashedPassword, name, email],
-    function (err) {
-      if (err) {
-        console.error('Registration error:', err.message);
-        if (err.message.includes('UNIQUE')) {
-          return res.status(400).json({ error: 'Username or email already exists' });
-        }
-        return res.status(500).json({ error: 'Registration failed. Please try again.' });
-      }
-      console.log(`User registered successfully: ${username}`);
-      res.status(201).json({ message: 'User registered successfully', userId: this.lastID });
-    }
-  );
-});
-
-// Login user
-router.post('/login', (req, res) => {
+// Register
+router.post("/register", async (req, res) => {
   const { username, password } = req.body;
 
-  console.log('🔐 Login attempt received:', { 
-    username, 
-    passwordLength: password ? password.length : 0,
-    timestamp: new Date().toISOString()
-  });
+  const hash = await bcrypt.hash(password, 10);
 
-  if (!username || !password) {
-    console.log('❌ Login failed: Missing credentials');
-    return res.status(400).json({ error: 'Username and password are required' });
+  const user = new User({ username, password: hash });
+  await user.save();
+
+  res.json({ message: "User registered" });
+});
+
+// Login
+router.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+
+  const user = await User.findOne({ username });
+  if (!user) return res.status(401).send("Invalid");
+
+  const match = await bcrypt.compare(password, user.password);
+  if (!match) return res.status(401).send("Invalid");
+
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || "secretkey");
+
+  // return user info along with token
+  res.json({
+    token,
+    user: {
+      id: user._id,
+      username: user.username,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    }
+  });
+});
+
+
+// Update profile (authenticated)
+router.put('/profile', authenticateToken, async (req, res) => {
+  const updates = {};
+  if (req.body.name) updates.name = req.body.name;
+  if (req.body.email) updates.email = req.body.email;
+  if (req.body.password) {
+    updates.password = await bcrypt.hash(req.body.password, 10);
   }
 
-  const db = getDB();
+  const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true });
+  if (!user) return res.status(404).json({ error: 'User not found' });
 
-  db.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
-    if (err) {
-      console.error('❌ Database error during login:', err.message);
-      return res.status(500).json({ error: 'Login service unavailable' });
-    }
-
-    console.log('🔍 User lookup result:', user ? 'User found' : 'User not found');
-
-    if (!user) {
-      console.log(`❌ Login failed: User not found - ${username}`);
-      return res.status(401).json({ error: 'Invalid username or password' });
-    }
-
-    try {
-      console.log('🔐 Verifying password for user:', username);
-      const isPasswordValid = bcrypt.compareSync(password, user.password);
-      console.log('🔐 Password verification result:', isPasswordValid);
-      
-      if (!isPasswordValid) {
-        console.log(`❌ Login failed: Invalid password for user ${username}`);
-        return res.status(401).json({ error: 'Invalid username or password' });
-      }
-
-      console.log('✅ Password verified successfully for user:', username);
-      
-      const token = jwt.sign(
-        { id: user.id, username: user.username, name: user.name, role: user.role },
-        process.env.JWT_SECRET || 'fallback_secret_key_change_in_production',
-        { expiresIn: '24h' }
-      );
-
-      console.log(`✅ User logged in successfully: ${username} (ID: ${user.id})`);
-      
-      res.json({ 
-        message: 'Login successful', 
-        token,
-        user: { 
-          id: user.id, 
-          username: user.username, 
-          name: user.name, 
-          email: user.email,
-          role: user.role 
-        }
-      });
-    } catch (bcryptError) {
-      console.error('❌ Password comparison error:', bcryptError.message);
-      return res.status(500).json({ error: 'Authentication service error' });
-    }
-  });
+  res.json({ message: 'Profile updated', user: {
+    id: user._id,
+    username: user.username,
+    name: user.name,
+    email: user.email,
+    role: user.role
+  }});
 });
 
 module.exports = router;

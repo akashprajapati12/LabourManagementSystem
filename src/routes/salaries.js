@@ -1,245 +1,162 @@
 
 const express = require('express');
-const { getDB } = require('../db');
+const mongoose = require('../db').mongoose;
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Delete salary by id
-router.delete('/:id', authenticateToken, (req, res) => {
+const Salary = mongoose.model('Salary', new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  labourId: { type: mongoose.Schema.Types.ObjectId, ref: 'Labour' },
+  month: String,
+  basicSalary: Number,
+  daysPresent: Number,
+  overtimeHours: Number,
+  overtimePay: Number,
+  totalAdvance: Number,
+  totalDeductions: Number,
+  netSalary: Number,
+  status: { type: String, default: 'pending' }
+}, { timestamps: true }));
+
+const Attendance = mongoose.model('Attendance');
+const Advance = mongoose.model('Advance');
+const Deduction = mongoose.model('Deduction');
+const Labour = mongoose.model('Labour');
+
+// Delete salary by id (user scoped)
+router.delete('/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  const db = getDB();
-  db.run('DELETE FROM salaries WHERE id = ?', [id], function (err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (this.changes === 0) {
-      return res.status(404).json({ error: 'Salary record not found' });
-    }
-    res.json({ message: 'Salary deleted successfully' });
-  });
+  const deleted = await Salary.findOneAndDelete({ _id: id, userId: req.user.id });
+  if (!deleted) {
+    return res.status(404).json({ error: 'Salary record not found' });
+  }
+  res.json({ message: 'Salary deleted successfully' });
 });
 
 // Calculate and create salary record
-router.post('/calculate', authenticateToken, (req, res) => {
+router.post('/calculate', authenticateToken, async (req, res) => {
   const { labourId, month } = req.body;
 
   if (!labourId || !month) {
     return res.status(400).json({ error: 'Labour ID and month are required' });
   }
 
-  const db = getDB();
+  // ensure labour belongs to user
+  const labour = await Labour.findOne({ _id: labourId, userId: req.user.id });
+  if (!labour) {
+    return res.status(404).json({ error: 'Labour not found' });
+  }
 
-  // Get labour details
-  db.get('SELECT * FROM labours WHERE id = ?', [labourId], (err, labour) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (!labour) {
-      return res.status(404).json({ error: 'Labour not found' });
-    }
+  // build date range for month
+  const start = new Date(month + '-01');
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + 1);
 
-    // Count full days (present), half days (half-day), and overtime separately
-    db.all(
-      `SELECT status, COUNT(*) as count FROM attendance 
-       WHERE labourId = ? AND strftime("%Y-%m", date) = ?
-       GROUP BY status`,
-      [labourId, month],
-      (err, statusCounts) => {
-        if (err) {
-          return res.status(500).json({ error: err.message });
-        }
+  // gather attendance counts
+  const statusCounts = await Attendance.aggregate([
+    { $match: { labourId: mongoose.Types.ObjectId(labourId), userId: mongoose.Types.ObjectId(req.user.id), date: { $gte: start, $lt: end } } },
+    { $group: { _id: '$status', count: { $sum: 1 } } }
+  ]);
 
-        let fullDays = 0;
-        let halfDays = 0;
+  let fullDays = 0;
+  let halfDays = 0;
+  statusCounts.forEach(r => {
+    if (r._id === 'present' || r._id === 'overtime') fullDays += r.count;
+    else if (r._id === 'half-day') halfDays += r.count;
+  });
 
-        // Count full and half days
-        statusCounts.forEach(row => {
-          if (row.status === 'present' || row.status === 'overtime') {
-            fullDays += row.count;
-          } else if (row.status === 'half-day') {
-            halfDays += row.count;
-          }
-        });
+  const workingDays = fullDays + halfDays * 0.5;
+  const basicSalary = labour.dailyRate * workingDays;
 
-        // Calculate working days: full days + (half days * 0.5)
-        const workingDays = fullDays + (halfDays * 0.5);
-        const basicSalary = labour.dailyRate * workingDays;
+  // total overtime hours
+  const overtimeRows = await Attendance.find({
+    labourId: mongoose.Types.ObjectId(labourId),
+    userId: mongoose.Types.ObjectId(req.user.id),
+    status: 'overtime',
+    date: { $gte: start, $lt: end }
+  }, 'hours');
 
-        // Get total overtime hours for the month
-        db.all(
-          `SELECT hours FROM attendance 
-           WHERE labourId = ? AND status = 'overtime' AND strftime("%Y-%m", date) = ?`,
-          [labourId, month],
-          (err, overtimeRows) => {
-            if (err) {
-              return res.status(500).json({ error: err.message });
-            }
+  const STANDARD_HOURS_PER_DAY = 8;
+  let totalOvertimeHours = 0;
+  overtimeRows.forEach(r => {
+    const worked = Number(r.hours) || 0;
+    totalOvertimeHours += Math.max(worked - STANDARD_HOURS_PER_DAY, 0);
+  });
+  const hourlyRate = labour.dailyRate / STANDARD_HOURS_PER_DAY;
+  const overtimePay = totalOvertimeHours * hourlyRate;
 
-            const STANDARD_HOURS_PER_DAY = 8; // Standard workday hours
-            let totalOvertimeHours = 0;
-            overtimeRows.forEach(row => {
-              const workedHours = Number(row.hours) || 0;
-              totalOvertimeHours += Math.max(workedHours - STANDARD_HOURS_PER_DAY, 0);
-            });
-            const hourlyRate = labour.dailyRate / STANDARD_HOURS_PER_DAY;
-            const overtimePay = totalOvertimeHours * hourlyRate; // 1x rate for overtime hours
+  // total advances
+  const advanceData = await Advance.aggregate([
+    { $match: { labourId: mongoose.Types.ObjectId(labourId), userId: mongoose.Types.ObjectId(req.user.id), status: 'pending', createdAt: { $gte: start, $lt: end } } },
+    { $group: { _id: null, total: { $sum: '$amount' } } }
+  ]);
+  const totalAdvance = (advanceData[0] && advanceData[0].total) || 0;
 
-            // Get total advances
-            db.get(
-              `SELECT COALESCE(SUM(amount), 0) as totalAdvance FROM advances 
-               WHERE labourId = ? AND status = 'pending' AND strftime("%Y-%m", date) = ?`,
-              [labourId, month],
-              (err, advanceData) => {
-                if (err) {
-                  return res.status(500).json({ error: err.message });
-                }
+  // total deductions
+  const deductionData = await Deduction.aggregate([
+    { $match: { labourId: mongoose.Types.ObjectId(labourId), userId: mongoose.Types.ObjectId(req.user.id), createdAt: { $gte: start, $lt: end } } },
+    { $group: { _id: null, total: { $sum: '$amount' } } }
+  ]);
+  const totalDeductions = (deductionData[0] && deductionData[0].total) || 0;
 
-                const totalAdvance = advanceData.totalAdvance || 0;
+  const netSalary = basicSalary + overtimePay - totalAdvance - totalDeductions;
 
-                // Get total deductions
-                db.get(
-                  `SELECT COALESCE(SUM(amount), 0) as totalDeductions FROM deductions 
-                   WHERE labourId = ? AND strftime("%Y-%m", date) = ?`,
-                  [labourId, month],
-                  (err, deductionData) => {
-                    if (err) {
-                      return res.status(500).json({ error: err.message });
-                    }
+  const salaryDoc = await Salary.findOneAndUpdate(
+    { labourId, month, userId: req.user.id },
+    { labourId, month, basicSalary, daysPresent: workingDays, overtimeHours: totalOvertimeHours, overtimePay, totalAdvance, totalDeductions, netSalary },
+    { upsert: true, new: true }
+  );
 
-                    const totalDeductions = deductionData.totalDeductions || 0;
-                    const netSalary = basicSalary + overtimePay - totalAdvance - totalDeductions;
-
-                    // Create salary record
-                    db.run(
-                      `INSERT OR REPLACE INTO salaries 
-                       (labourId, month, basicSalary, daysPresent, overtimeHours, overtimePay, totalAdvance, totalDeductions, netSalary) 
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                      [labourId, month, basicSalary, workingDays, totalOvertimeHours, overtimePay, totalAdvance, totalDeductions, netSalary],
-                      function (err) {
-                        if (err) {
-                          return res.status(500).json({ error: err.message });
-                        }
-                        res.status(201).json({
-                          message: 'Salary calculated successfully',
-                          salary: {
-                            labourId,
-                            month,
-                            basicSalary,
-                            daysPresent: workingDays,
-                            overtimeHours: totalOvertimeHours,
-                            overtimePay,
-                            totalAdvance,
-                            totalDeductions,
-                            netSalary
-                          }
-                        });
-                      }
-                    );
-                  }
-                );
-              }
-            );
-          }
-        );
-      }
-    );
+  res.status(201).json({
+    message: 'Salary calculated successfully',
+    salary: salaryDoc
   });
 });
 
 // Get salary for labour
-router.get('/labour/:labourId', authenticateToken, (req, res) => {
+router.get('/labour/:labourId', authenticateToken, async (req, res) => {
   const { labourId } = req.params;
-  const db = getDB();
-
-  db.all(
-    `SELECT * FROM salaries WHERE labourId = ? ORDER BY month DESC`,
-    [labourId],
-    (err, salaries) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      res.json(salaries);
-    }
-  );
+  const salaries = await Salary.find({ labourId, userId: req.user.id }).sort({ month: -1 });
+  res.json(salaries);
 });
 
 // Get all salaries for a month
-router.get('/month/:month', authenticateToken, (req, res) => {
+router.get('/month/:month', authenticateToken, async (req, res) => {
   const { month } = req.params;
-  const db = getDB();
-
-  db.all(
-    `SELECT s.*, l.name FROM salaries s 
-     JOIN labours l ON s.labourId = l.id 
-     WHERE s.month = ? 
-     ORDER BY l.name`,
-    [month],
-    (err, salaries) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      res.json(salaries);
-    }
-  );
+  const salaries = await Salary.find({ month, userId: req.user.id })
+    .populate('labourId', 'name')
+    .sort({ 'labourId.name': 1 });
+  res.json(salaries);
 });
 
 // Get all salaries
-router.get('/', authenticateToken, (req, res) => {
-  const db = getDB();
-
-  db.all(
-    `SELECT s.*, l.name FROM salaries s 
-     JOIN labours l ON s.labourId = l.id 
-     ORDER BY s.month DESC, l.name`,
-    (err, salaries) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      res.json(salaries);
-    }
-  );
+router.get('/', authenticateToken, async (req, res) => {
+  const salaries = await Salary.find({ userId: req.user.id })
+    .populate('labourId', 'name')
+    .sort({ month: -1, 'labourId.name': 1 });
+  res.json(salaries);
 });
 
 // Get salary by id
-router.get('/:id', authenticateToken, (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  const db = getDB();
-
-  db.get(
-    `SELECT s.*, l.name FROM salaries s JOIN labours l ON s.labourId = l.id WHERE s.id = ?`,
-    [id],
-    (err, salary) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      if (!salary) {
-        return res.status(404).json({ error: 'Salary record not found' });
-      }
-      res.json(salary);
-    }
-  );
+  const salary = await Salary.findOne({ _id: id, userId: req.user.id }).populate('labourId', 'name');
+  if (!salary) return res.status(404).json({ error: 'Salary record not found' });
+  res.json(salary);
 });
 
 // Update salary status
-router.put('/:id', authenticateToken, (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
-  const db = getDB();
-
-  db.run(
-    `UPDATE salaries SET status = ? WHERE id = ?`,
-    [status, id],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'Salary record not found' });
-      }
-      res.json({ message: 'Salary status updated successfully' });
-    }
+  const sal = await Salary.findOneAndUpdate(
+    { _id: id, userId: req.user.id },
+    { status },
+    { new: true }
   );
+  if (!sal) return res.status(404).json({ error: 'Salary record not found' });
+  res.json({ message: 'Salary status updated successfully' });
 });
 
 module.exports = router;

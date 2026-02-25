@@ -1,5 +1,8 @@
 // Create default admin user for the application
-const { initDB, getDB } = require('./src/db');
+console.warn('⚠️ create_admin.js is deprecated after migrating to MongoDB');
+process.exit(0);
+
+// const { initDB, getDB } = require('./src/db');
 const bcrypt = require('bcryptjs');
 
 async function createDefaultUser() {

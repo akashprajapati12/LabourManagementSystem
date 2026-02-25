@@ -1,7 +1,10 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { initDB, getDB } = require('./src/db');
+console.warn('⚠️ create_test_user.js is deprecated. Rewrite using MongoDB models or remove this file.');
+process.exit(0);
+
+// const { initDB, getDB } = require('./src/db');
 
 async function testSalaryAPI() {
   try {

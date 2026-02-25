@@ -1,4 +1,4 @@
-const { initDB, getDB } = require('./src/db');
+const { initDB } = require('./src/db');
 
 async function verifyCalculation() {
   try {

@@ -10,7 +10,6 @@ coverage
 coverage
 .vscode
 *.md
-*.sqlite
 *.log
 test_*
 check_*

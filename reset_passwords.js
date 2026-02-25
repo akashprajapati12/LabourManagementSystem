@@ -1,5 +1,8 @@
 // Reset all user passwords to known values
-const { initDB, getDB } = require('./src/db');
+console.warn('⚠️ reset_passwords.js is deprecated after migrating to MongoDB');
+process.exit(0);
+
+// const { initDB, getDB } = require('./src/db');
 const bcrypt = require('bcryptjs');
 
 async function resetPasswords() {

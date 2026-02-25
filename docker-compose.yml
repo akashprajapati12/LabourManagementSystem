@@ -1,6 +1,18 @@
 version: '3.8'
 
 services:
+  mongo:
+    image: mongo:6
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand({ ping: 1 })' | mongo --quiet || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   labour-mgmt:
     build: .
     ports:
@@ -9,9 +21,10 @@ services:
       - PORT=5000
       - JWT_SECRET=your_secure_secret_key_here
       - NODE_ENV=production
-      - DB_PATH=/app/database.sqlite
+      - MONGODB_URI=mongodb://mongo:27017/labourDB
+    depends_on:
+      - mongo
     volumes:
-      - ./database.sqlite:/app/database.sqlite
       - ./backups:/app/backups
     restart: unless-stopped
     healthcheck:
@@ -33,3 +46,6 @@ services:
     depends_on:
       - labour-mgmt
     restart: unless-stopped
+volumes:
+  mongo-data:
+

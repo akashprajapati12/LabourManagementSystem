@@ -59,14 +59,27 @@ function setupNetworkMonitoring() {
 
 // Check authentication
 function checkAuth() {
-    if (authToken) {
-        showMainApp();
-        updateUserDisplay();
-    } else {
-        showLoginModal();
-    }
-}
+  // migrate old storage key if it's still present
+  if (!localStorage.getItem('authToken') && localStorage.getItem('token')) {
+    const old = localStorage.getItem('token');
+    localStorage.removeItem('token');
+    localStorage.setItem('authToken', old);
+  }
 
+  // determine if user already has a token stored
+  const token = localStorage.getItem("authToken");
+  if (token) {
+    authToken = token;
+    currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+    // show main application and update UI
+    showMainApp();
+    updateUserDisplay();
+  } else {
+    // display login modal when not authenticated
+    showLoginModal();
+  }
+}
 // Show login screen
 function showLoginModal() {
     document.getElementById('loginContainer').style.display = 'flex';
@@ -252,34 +265,38 @@ function setupEventListeners() {
 // Authentication functions
 async function handleLogin(e) {
     e.preventDefault();
-    
+
     const username = document.getElementById('loginUsername').value;
     const password = document.getElementById('loginPassword').value;
-    
+
     // Basic validation
     if (!username || !password) {
         showAlert('Please enter both username and password', 'danger');
         return;
     }
-    
+
     try {
         const response = await fetch(`${API_URL}/auth/login`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({ username, password })
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok) {
             authToken = data.token;
-            currentUser = data.user;
             localStorage.setItem('authToken', authToken);
+
+            // if server returned user info, use it; otherwise fall back to username
+            currentUser = data.user || { username };
             localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
             showMainApp();
+            updateUserDisplay();
             showAlert('Login successful', 'success');
             document.getElementById('loginForm').reset();
         } else {
@@ -287,13 +304,14 @@ async function handleLogin(e) {
         }
     } catch (error) {
         let errorMessage = 'Error connecting to server. Please try again.';
-        
+
         if (error.name === 'AbortError') {
             errorMessage = 'Request timed out. Please check your internet connection and try again.';
         } else if (error.message.includes('Failed to fetch')) {
             errorMessage = 'Network error. Please check your internet connection.';
         }
-        
+
+        console.error('Login exception:', error);
         showAlert(errorMessage, 'danger');
     }
 }
@@ -1407,42 +1425,35 @@ async function fetchAPI(endpoint, method = 'GET', data = null) {
     const options = {
         method,
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
+            'Content-Type': 'application/json'
         }
     };
+
+    if (authToken) {
+        options.headers['Authorization'] = `Bearer ${authToken}`;
+    }
 
     if (data && method !== 'GET') {
         options.body = JSON.stringify(data);
     }
 
     const response = await fetch(`${API_URL}${endpoint}`, options);
-
-    if (response.status === 401) {
-        logout();
-        throw new Error('Unauthorized');
-    }
-
-    // Try to parse body as text first so we can handle non-JSON errors
-    const text = await response.text();
-
     if (!response.ok) {
-        let errMsg = text || `Request failed with status ${response.status}`;
-        try {
-            const parsed = JSON.parse(text || '{}');
-            errMsg = parsed.error || parsed.message || errMsg;
-        } catch (e) {
-            // not JSON, keep text
-        }
-        throw new Error(errMsg);
+        const errText = await response.text().catch(() => '');
+        const err = new Error(`API request failed: ${response.status} ${response.statusText} - ${errText}`);
+        err.response = response;
+        throw err;
     }
 
+    // attempt to parse JSON, but return raw text if parse fails
+    const text = await response.text();
     try {
-        return text ? JSON.parse(text) : {};
+        return JSON.parse(text);
     } catch (e) {
         return text;
     }
 }
+
 
 function showAlert(message, type = 'info') {
     const loginContainer = document.getElementById('loginContainer');

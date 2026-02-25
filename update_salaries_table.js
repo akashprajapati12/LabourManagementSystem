@@ -1,4 +1,7 @@
-const { initDB, getDB } = require('./src/db');
+console.warn('⚠️ update_salaries_table.js is deprecated and no longer needed with MongoDB');
+process.exit(0);
+
+// const { initDB, getDB } = require('./src/db');
 
 async function updateSalariesTable() {
   try {

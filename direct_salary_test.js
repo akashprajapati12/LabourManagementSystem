@@ -1,5 +1,8 @@
 require('dotenv').config();
-const { initDB, getDB } = require('./src/db');
+console.warn('⚠️ direct_salary_test.js is deprecated. Rewrite using MongoDB models or remove this file.');
+process.exit(0);
+
+// const { initDB, getDB } = require('./src/db');
 
 async function directSalaryTest() {
   try {

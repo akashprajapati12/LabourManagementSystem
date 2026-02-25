@@ -1,101 +1,73 @@
 const express = require('express');
-const { getDB } = require('../db');
+const mongoose = require('../db').mongoose;
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
+const Advance = mongoose.model('Advance', new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  labourId: { type: mongoose.Schema.Types.ObjectId, ref: 'Labour' },
+  amount: Number,
+  reason: String,
+  dueDate: Date,
+  status: { type: String, default: 'pending' }
+}, { timestamps: true }));
+
 // Add advance
-router.post('/', authenticateToken, (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   const { labourId, amount, reason, dueDate } = req.body;
 
   if (!labourId || !amount) {
     return res.status(400).json({ error: 'Labour ID and amount are required' });
   }
 
-  const db = getDB();
+  const advance = new Advance({
+    userId: req.user.id,
+    labourId,
+    amount,
+    reason,
+    dueDate
+  });
 
-  db.run(
-    `INSERT INTO advances (labourId, amount, reason, dueDate) 
-     VALUES (?, ?, ?, ?)`,
-    [labourId, amount, reason, dueDate],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      res.status(201).json({ message: 'Advance added successfully', advanceId: this.lastID });
-    }
-  );
+  await advance.save();
+  res.status(201).json({ message: 'Advance added successfully', advanceId: advance._id });
 });
 
-// Get advances for labour
-router.get('/labour/:labourId', authenticateToken, (req, res) => {
+// Get advances for labour (user scoped)
+router.get('/labour/:labourId', authenticateToken, async (req, res) => {
   const { labourId } = req.params;
-  const db = getDB();
-
-  db.all(
-    `SELECT * FROM advances WHERE labourId = ? ORDER BY date DESC`,
-    [labourId],
-    (err, advances) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      res.json(advances);
-    }
-  );
+  const advances = await Advance.find({ labourId, userId: req.user.id }).sort({ createdAt: -1 });
+  res.json(advances);
 });
 
-// Get all advances
-router.get('/', authenticateToken, (req, res) => {
-  const db = getDB();
-
-  db.all(
-    `SELECT a.*, l.name FROM advances a 
-     JOIN labours l ON a.labourId = l.id 
-     ORDER BY a.date DESC`,
-    (err, advances) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      res.json(advances);
-    }
-  );
+// Get all advances (user scoped)
+router.get('/', authenticateToken, async (req, res) => {
+  const advances = await Advance.find({ userId: req.user.id })
+    .populate('labourId', 'name')
+    .sort({ createdAt: -1 });
+  res.json(advances);
 });
 
 // Update advance status
-router.put('/:id', authenticateToken, (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
-  const db = getDB();
 
-  db.run(
-    `UPDATE advances SET status = ? WHERE id = ?`,
-    [status, id],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'Advance not found' });
-      }
-      res.json({ message: 'Advance updated successfully' });
-    }
+  const adv = await Advance.findOneAndUpdate(
+    { _id: id, userId: req.user.id },
+    { status },
+    { new: true }
   );
+  if (!adv) return res.status(404).json({ error: 'Advance not found' });
+  res.json({ message: 'Advance updated successfully' });
 });
 
 // Delete advance
-router.delete('/:id', authenticateToken, (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  const db = getDB();
-
-  db.run('DELETE FROM advances WHERE id = ?', [id], function (err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (this.changes === 0) {
-      return res.status(404).json({ error: 'Advance not found' });
-    }
-    res.json({ message: 'Advance deleted successfully' });
-  });
+  const adv = await Advance.findOneAndDelete({ _id: id, userId: req.user.id });
+  if (!adv) return res.status(404).json({ error: 'Advance not found' });
+  res.json({ message: 'Advance deleted successfully' });
 });
 
 module.exports = router;

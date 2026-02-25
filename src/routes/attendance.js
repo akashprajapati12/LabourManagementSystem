@@ -1,108 +1,90 @@
 const express = require('express');
-const { getDB } = require('../db');
+const mongoose = require('../db').mongoose;
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Attendance schema
+const Attendance = mongoose.model('Attendance', new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  labourId: { type: mongoose.Schema.Types.ObjectId, ref: 'Labour' },
+  date: { type: Date },
+  status: String,
+  hours: Number,
+  notes: String
+}, { timestamps: true }));
+
 // Mark attendance
-router.post('/', authenticateToken, (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   const { labourId, date, status, hours, notes } = req.body;
 
   if (!labourId || !date) {
     return res.status(400).json({ error: 'Labour ID and date are required' });
   }
 
-  const db = getDB();
+  const attendance = new Attendance({
+    userId: req.user.id,
+    labourId,
+    date,
+    status: status || 'present',
+    hours: hours || 8,
+    notes
+  });
 
-  db.run(
-    `INSERT OR REPLACE INTO attendance (labourId, date, status, hours, notes) 
-     VALUES (?, ?, ?, ?, ?)`,
-    [labourId, date, status || 'present', hours || 8, notes],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      res.status(201).json({ message: 'Attendance marked successfully' });
-    }
-  );
+  await attendance.save();
+  res.status(201).json({ message: 'Attendance marked successfully' });
 });
 
-// Get attendance for labour
-router.get('/labour/:labourId', authenticateToken, (req, res) => {
+// Get attendance for labour (user scoped)
+router.get('/labour/:labourId', authenticateToken, async (req, res) => {
   const { labourId } = req.params;
   const { month } = req.query;
-  const db = getDB();
 
-  let query = 'SELECT * FROM attendance WHERE labourId = ?';
-  const params = [labourId];
-
+  const filter = { labourId, userId: req.user.id };
   if (month) {
-    query += ' AND strftime("%Y-%m", date) = ?';
-    params.push(month);
+    // match year-month string
+    const start = new Date(month + '-01');
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + 1);
+    filter.date = { $gte: start, $lt: end };
   }
 
-  query += ' ORDER BY date DESC';
-
-  db.all(query, params, (err, records) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    res.json(records);
-  });
+  const records = await Attendance.find(filter).sort({ date: -1 });
+  res.json(records);
 });
 
-// Get all attendance
-router.get('/', authenticateToken, (req, res) => {
-  const db = getDB();
-
-  db.all(
-    `SELECT a.*, l.name FROM attendance a 
-     JOIN labours l ON a.labourId = l.id 
-     ORDER BY a.date DESC`,
-    [],
-    (err, records) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      res.json(records);
-    }
-  );
+// Get all attendance for current user
+router.get('/', authenticateToken, async (req, res) => {
+  const records = await Attendance.find({ userId: req.user.id })
+    .populate('labourId', 'name')
+    .sort({ date: -1 });
+  res.json(records);
 });
 
-// Get all attendance for a month
-router.get('/month/:month', authenticateToken, (req, res) => {
+// Get all attendance for a month (user scoped)
+router.get('/month/:month', authenticateToken, async (req, res) => {
   const { month } = req.params;
-  const db = getDB();
+  const start = new Date(month + '-01');
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + 1);
 
-  db.all(
-    `SELECT a.*, l.name FROM attendance a 
-     JOIN labours l ON a.labourId = l.id 
-     WHERE strftime("%Y-%m", a.date) = ? 
-     ORDER BY a.date DESC`,
-    [month],
-    (err, records) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      res.json(records);
-    }
-  );
+  const records = await Attendance.find({
+    userId: req.user.id,
+    date: { $gte: start, $lt: end }
+  }).populate('labourId', 'name')
+    .sort({ date: -1 });
+
+  res.json(records);
 });
 
-// Delete attendance record
-router.delete('/:id', authenticateToken, (req, res) => {
+// Delete attendance record (user scoped)
+router.delete('/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  const db = getDB();
-
-  db.run('DELETE FROM attendance WHERE id = ?', [id], function (err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (this.changes === 0) {
-      return res.status(404).json({ error: 'Attendance record not found' });
-    }
-    res.json({ message: 'Attendance record deleted successfully' });
-  });
+  const result = await Attendance.findOneAndDelete({ _id: id, userId: req.user.id });
+  if (!result) {
+    return res.status(404).json({ error: 'Attendance record not found' });
+  }
+  res.json({ message: 'Attendance record deleted successfully' });
 });
 
 module.exports = router;

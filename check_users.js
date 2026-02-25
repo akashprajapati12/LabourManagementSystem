@@ -1,5 +1,8 @@
 // Check all users in the database
-const { initDB, getDB } = require('./src/db');
+console.warn('⚠️ check_users.js is deprecated after migrating to MongoDB');
+process.exit(0);
+
+// const { initDB, getDB } = require('./src/db');
 const bcrypt = require('bcryptjs');
 
 async function checkUsers() {
